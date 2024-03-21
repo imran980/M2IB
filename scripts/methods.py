@@ -7,7 +7,7 @@ import numpy as np
 import clip
 import copy
 import torch 
-from clip_wrapper import ContrastiveCLIPWrapper
+from scripts.clip_wrapper import ContrastiveCLIPWrapper
 from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 
 # Feature Map is the output of a certain layer given X
