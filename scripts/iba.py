@@ -191,4 +191,3 @@ class IBAInterpreter:
         fitting_term = self.fitting_estimator(outputs, labels).mean()
         total =  self.beta * compression_term - fitting_term
         return compression_term, fitting_term, total
-
