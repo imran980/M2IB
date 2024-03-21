@@ -38,16 +38,22 @@ def get_compression_estimator(var, layer, features):
     return estimator
 
 
-def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10):
-    features = extract_feature_map(model.text_model.base_model, layer_idx, text_t)
-    layer = extract_bert_layer(model.text_model.base_model, layer_idx)
-    compression_estimator = get_compression_estimator(var, layer, features)
-    reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=False)
-    return reader.text_heatmap(text_t, image_t)
-
-def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=False):
-    features = extract_feature_map(model.vision_model.base_model, layer_idx, image_t)
-    layer = extract_bert_layer(model.vision_model.base_model, layer_idx)
-    compression_estimator = get_compression_estimator(var, layer, features)
-    reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
+def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var_image, var_text, lr=1, train_steps=10, progbar=False):
+    features_image = extract_feature_map(model.vision_model, layer_idx, image_t)
+    features_text = extract_feature_map(model.text_model, layer_idx, text_t)
+    layer_image = extract_bert_layer(model.vision_model, layer_idx)
+    layer_text = extract_bert_layer(model.text_model, layer_idx)
+    compression_estimator_image = get_compression_estimator(var_image, layer_image, features_image)
+    compression_estimator_text = get_compression_estimator(var_text, layer_text, features_text)
+    reader = IBAInterpreter(model, compression_estimator_image, compression_estimator_text, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
     return reader.vision_heatmap(text_t, image_t)
+
+def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var_image, var_text, lr=1, train_steps=10):
+    features_image = extract_feature_map(model.vision_model, layer_idx, image_t)
+    features_text = extract_feature_map(model.text_model, layer_idx, text_t)
+    layer_image = extract_bert_layer(model.vision_model, layer_idx)
+    layer_text = extract_bert_layer(model.text_model, layer_idx)
+    compression_estimator_image = get_compression_estimator(var_image, layer_image, features_image)
+    compression_estimator_text = get_compression_estimator(var_text, layer_text, features_text)
+    reader = IBAInterpreter(model, compression_estimator_image, compression_estimator_text, beta=beta, lr=lr, steps=train_steps)
+    return reader.text_heatmap(text_t, image_t)
