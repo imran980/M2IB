@@ -125,9 +125,3 @@ class ContrastiveCLIPWrapper(ClipWrapper):
         super().__init__(model)
         self.vision_model = ContrastiveLearner(self.vision_model, temperature)
         self.text_model = ContrastiveLearner(self.text_model, temperature)
-
-    def get_image_features(self, x, output_hidden_states=False, emb_input=False):
-        return self.vision_model(x)
-
-    def get_text_features(self, x, output_hidden_states=False, emb_input=False):
-        return self.text_model(x)
