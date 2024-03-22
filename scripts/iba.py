@@ -173,24 +173,24 @@ class IBAInterpreter:
         replace_layer(self.model.vision_model, self.sequential_image, self.original_layer_image)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
-    def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
+   def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
         batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
-        # Reset from previous run or modifications
         self.bottleneck.reset_alpha()
-        # Train
-        self.model.eval()
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=self.progbar):
             optimizer.zero_grad()
             out_text, out_image = self.model.get_text_features(batch[0]), self.model.get_image_features(batch[1])
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=(out_text, out_image), labels=(batch[0], batch[1]), text_features=batch[0], image_features=batch[1])
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=(out_text, out_image), labels=(out_image, out_text), text_features=batch[0], image_features=batch[1])
             loss_t.backward()
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t
 
     def calc_loss(self, outputs, labels, text_features, image_features):
         """ Calculate the combined loss expression for optimization of lambda """
-        compression_term, fitting_term_image, fitting_term_text = self.bottleneck(image_features, text_features, outputs=outputs, labels=labels)
+        t_image, t_text = self.bottleneck(image_features, text_features)
+        compression_term = self.bottleneck.buffer_capacity.mean()
+        fitting_term_image = self.fitting_estimator(outputs[0], t_image).mean()
+        fitting_term_text = self.fitting_estimator(outputs[1], t_text).mean()
         fitting_term = (fitting_term_image + fitting_term_text) / 2
         total = self.beta * compression_term - fitting_term
         return compression_term, fitting_term, total
