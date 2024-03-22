@@ -173,13 +173,14 @@ class IBAInterpreter:
         replace_layer(self.model.text_model, self.sequential_text, self.original_layer_text)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
-    def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor, text_features: torch.Tensor, image_features: torch.Tensor):
-        batch = text_features.expand(self.batch_size, -1), image_features.expand(self.batch_size, -1, -1, -1)
+    def _train_bottleneck(self, text_t, image_t, text_features, image_features):
+        batch = (text_features.expand(self.batch_size, -1), image_features.expand(self.batch_size, -1, -1, -1))
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         self.bottleneck.reset_alpha()
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=self.progbar):
             optimizer.zero_grad()
-            out_text, out_image = self.model.get_text_features(batch[0]), self.model.get_image_features(batch[1])
+            out_text = self.model.get_text_features(batch[0])
+            out_image = self.model.get_image_features(batch[1])
             t_image, t_text = self.bottleneck(image_features, text_features)
             loss_c, loss_f, loss_t = self.calc_loss(outputs=(out_text, out_image), labels=(batch[0], batch[1]), t_image=t_image, t_text=t_text)
             loss_t.backward()
