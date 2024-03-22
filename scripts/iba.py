@@ -180,14 +180,14 @@ class IBAInterpreter:
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=self.progbar):
             optimizer.zero_grad()
             out_text, out_image = self.model.get_text_features(batch[0]), self.model.get_image_features(batch[1])
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=(out_text, out_image), labels=(batch[0], batch[1]), text_features=batch[0], image_features=batch[1])
+            t_image, t_text = self.bottleneck(image_features, text_features)
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=(out_text, out_image), labels=(batch[0], batch[1]), t_image=t_image, t_text=t_text)
             loss_t.backward()
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t
 
-    def calc_loss(self, outputs, labels, text_features, image_features):
+    def calc_loss(self, outputs, labels, t_image, t_text):
         """ Calculate the combined loss expression for optimization of lambda """
-        t_image, t_text = self.bottleneck(image_features, text_features)
         compression_term = self.bottleneck.buffer_capacity.mean()
         fitting_term_image = self.fitting_estimator(outputs[0], t_image).mean()
         fitting_term_text = self.fitting_estimator(outputs[1], t_text).mean()
