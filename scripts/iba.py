@@ -173,7 +173,7 @@ class IBAInterpreter:
         replace_layer(self.model.vision_model, self.sequential_image, self.original_layer_image)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
-   def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
+    def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
         batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         self.bottleneck.reset_alpha()
