@@ -6,6 +6,7 @@ import copy
 import torch
 import torch.nn as nn
 from functools import partial
+import torch.nn.functional as F
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def permute_then_forward(self, x):
@@ -110,15 +111,30 @@ class text_encoder_wrapper(nn.Module):
 class ClipWrapper(nn.Module):
     def __init__(self, model):
         super().__init__()
+        self.model = model
         self.vision_model = model.vision_model
         self.text_model = model.text_model
-        self.dtype = model.dtype
 
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
-        return self.vision_model(x, output_hidden_states, emb_input)
+        with torch.no_grad():
+            output = self.vision_model(x)
+            if output_hidden_states:
+                return output.last_hidden_state
+            else:
+                return output.pooler_output
 
     def get_text_features(self, x, output_hidden_states=False, emb_input=False):
-        return self.text_model(x, output_hidden_states, emb_input)
+        with torch.no_grad():
+            output = self.text_model(x)
+            if output_hidden_states:
+                return output.last_hidden_state
+            else:
+                return output.pooler_output
+
+    def forward(self, image, text):
+        image_features = self.get_image_features(image)
+        text_features = self.get_text_features(text)
+        return F.cosine_similarity(image_features, text_features, dim=-1)
 
 class ContrastiveCLIPWrapper(ClipWrapper):
     def __init__(self, model, temperature=0.07):
