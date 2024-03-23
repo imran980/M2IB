@@ -146,12 +146,6 @@ class IBAInterpreter:
         self.sequential_image = mySequential(self.original_layer_image, self.bottleneck)
         self.sequential_text = mySequential(self.original_layer_text, self.bottleneck)
 
-    def text_heatmap(self, text_t, image_t):
-        saliency, loss_c, loss_f, loss_t = self._run_text_training(text_t, image_t)
-        saliency = torch.nansum(saliency, -1).cpu().detach().numpy()
-        saliency = normalize(saliency)
-        return normalize(saliency)
-
     def vision_heatmap(self, text_t, image_t):
         saliency, loss_c, loss_f, loss_t = self._run_vision_training(text_t, image_t)
         saliency = torch.nansum(saliency, -1)[1:]  # Discard the first because it's the CLS token
@@ -159,6 +153,12 @@ class IBAInterpreter:
         saliency = saliency.reshape(1, 1, dim, dim)
         saliency = torch.nn.functional.interpolate(saliency, size=224, mode='bilinear')
         saliency = saliency.squeeze().cpu().detach().numpy()
+        return normalize(saliency)
+
+    def text_heatmap(self, text_t, image_t):
+        saliency, loss_c, loss_f, loss_t = self._run_text_training(text_t, image_t)
+        saliency = torch.nansum(saliency, -1).cpu().detach().numpy()
+        saliency = normalize(saliency)
         return normalize(saliency)
 
     def _run_vision_training(self, text_t, image_t):
