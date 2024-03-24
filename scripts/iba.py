@@ -161,28 +161,32 @@ class IBAInterpreter:
         saliency = normalize(saliency)
         return normalize(saliency)
 
-    def _run_vision_training(self, text_t, image_t):
-        replace_layer(self.model.vision_model, self.original_layer_image, self.sequential_image)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t, text_features=text_t, image_features=image_t)
-        replace_layer(self.model.vision_model, self.sequential_image, self.original_layer_image)
-        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-
     def _run_text_training(self, text_t, image_t):
-        replace_layer(self.model.text_model, self.original_layer_text, self.sequential_text)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t, text_features=text_t, image_features=image_t)
-        replace_layer(self.model.text_model, self.sequential_text, self.original_layer_text)
+        replace_layer(self.model.text_model, self.original_layer, self.sequential)
+        image_features = self.model.get_image_features(image_t)
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_features)
+        replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
-    def _train_bottleneck(self, text_t, image_t, text_features, image_features):
-        batch = (text_features.expand(self.batch_size, -1), image_features.expand(self.batch_size, -1, -1, -1))
+    def _run_vision_training(self, text_t, image_t):
+        replace_layer(self.model.vision_model, self.original_layer, self.sequential)
+        text_features = self.model.get_text_features(text_t)
+        loss_c, loss_f, loss_t = self._train_bottleneck(image_t, text_features)
+        replace_layer(self.model.vision_model, self.sequential, self.original_layer)
+        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
+
+    def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor, text_features, image_features):
+        batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
+        # Reset from previous run or modifications
         self.bottleneck.reset_alpha()
-        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=self.progbar):
+        # Train
+        self.model.eval()
+        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck",
+                      disable=self.progbar):
             optimizer.zero_grad()
-            out_text = self.model.get_text_features(batch[0])
-            out_image = self.model.get_image_features(batch[1])
-            t_image, t_text = self.bottleneck(image_features, text_features)
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=(out_text, out_image), labels=(batch[0], batch[1]), t_image=t_image, t_text=t_text)
+            out = self.model.get_text_features(batch[0], text_features, output_hidden_states=True), self.model.get_image_features(batch[1], image_features, output_hidden_states=True)
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=out[0], labels=out[1])
             loss_t.backward()
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t
