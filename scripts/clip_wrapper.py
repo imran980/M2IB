@@ -44,22 +44,28 @@ class image_encoder_wrapper(nn.Module):
         for layer in self.transformer.resblocks:
             layer.forward = partial(permute_then_forward, layer)
 
-    def forward(self, x, output_hidden_states=False, emb_input = False):
+    def forward(self, x, text_features, output_hidden_states=False, emb_input=False):
         if not emb_input:
             x = self.embeddings(x)
         x = self.ln_pre(x).to(self.dtype)
-        #x = x.permute(1, 0, 2)  # NLD -> LND
+        # x = x.permute(1, 0, 2)  # NLD -> LND
         hidden_states = [x.clone().detach()]
         for layer in self.transformer.resblocks:
-            x = layer(x.to(self.dtype))
-            if type(x) == tuple and len(x) == 1: x = x[0]
+            # Apply cross-attention between image and text features
+            cross_attention_output = layer.cross_attn(x.to(self.dtype), text_features)
+
+            # Combine the output of the self-attention and cross-attention
+            x = layer(x.to(self.dtype), cross_attention_output)
+
+            if type(x) == tuple and len(x) == 1:
+                x = x[0]
             hidden_states.append(x.clone().detach())
-        #x = x.permute(1, 0, 2)  # LND -> NLD
+        # x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_post(x[:, 0, :]).type(self.dtype)
         if self.proj is not None:
             x = x @ self.proj
         if output_hidden_states:
-            return {'pooler_output':x, 'hidden_states':hidden_states}
+            return {'pooler_output': x, 'hidden_states': hidden_states}
         else:
             return x
 
@@ -88,23 +94,29 @@ class text_encoder_wrapper(nn.Module):
             layer.forward = partial(permute_then_forward, layer)
         
     
-    def forward(self, x, output_hidden_states=False, emb_input=False):
-        maxidx = -1 #x.argmax(dim=-1) take features from the eot embedding (eot_token is the highest number in each sequence)
+    def forward(self, x, image_features, output_hidden_states=False, emb_input=False):
+        maxidx = -1  # x.argmax(dim=-1) take features from the eot embedding (eot_token is the highest number in each sequence)
         if not emb_input:
             x = self.embeddings(x)
-        #x = x.permute(1, 0, 2)  # NLD -> LND
+        # x = x.permute(1, 0, 2)  # NLD -> LND
         # Insert code to record hidden states
-        hidden_states = [x.clone().detach()] # embedding output
+        hidden_states = [x.clone().detach()]  # embedding output
         for layer in self.transformer.resblocks:
-            x = layer(x.to(self.dtype))
-            if type(x) == tuple and len(x) == 1: x = x[0]
+            # Apply cross-attention between text and image features
+            cross_attention_output = layer.cross_attn(x.to(self.dtype), image_features)
+    
+            # Combine the output of the self-attention and cross-attention
+            x = layer(x.to(self.dtype), cross_attention_output)
+    
+            if type(x) == tuple and len(x) == 1:
+                x = x[0]
             hidden_states.append(x.clone().detach())
-        #x = x.permute(1, 0, 2)  # LND -> NLD
+        # x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_final(x).type(self.dtype)
         x = x @ self.text_projection
         x = x[torch.arange(x.shape[0]), maxidx] @ self.text_projection
         if output_hidden_states:
-            return {'pooler_output':x, 'hidden_states':hidden_states}
+            return {'pooler_output': x, 'hidden_states': hidden_states}
         else:
             return x
 
