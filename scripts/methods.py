@@ -11,18 +11,18 @@ from scripts.clip_wrapper import ContrastiveCLIPWrapper
 from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 
 # Feature Map is the output of a certain layer given X
-def extract_feature_map(model, layer_idx, text, image, is_text=False):
+def extract_feature_map(model, layer_idx, x, is_text=False):
     with torch.no_grad():
         if is_text:
             text_encoder = model.text_model
-            text_features = text_encoder(text, output_hidden_states=True)
+            text_features = text_encoder(x, output_hidden_states=True)
             feature = text_features['hidden_states'][layer_idx + 1]
-            image_features = model.get_image_features(image, output_hidden_states=False)
+            image_features = model.get_image_features(x, output_hidden_states=False)
         else:
             image_encoder = model.vision_model
-            image_features = image_encoder(image, output_hidden_states=True)
+            image_features = image_encoder(x, output_hidden_states=True)
             feature = image_features['hidden_states'][layer_idx + 1]
-            text_features = model.get_text_features(text, output_hidden_states=False)
+            text_features = model.get_text_features(x, output_hidden_states=False)
 
         return feature, text_features, image_features
 
@@ -47,8 +47,8 @@ def get_compression_estimator(var, layer, features):
     return estimator
 
 
-def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var_image, var_text, lr=1, train_steps=10, progbar=False):
-    features_image = extract_feature_map(model.vision_model, layer_idx, image_t, is_text=False)
+def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=False):
+    features, _, _ = extract_feature_map(model, layer_idx, image_t, is_text=False)
     features_text = extract_feature_map(model.text_model, layer_idx, text_t, is_text=True)
     layer_image = extract_bert_layer(model.vision_model, layer_idx)
     layer_text = extract_bert_layer(model.text_model, layer_idx)
@@ -57,8 +57,8 @@ def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var_image, var_t
     reader = IBAInterpreter(model, compression_estimator_image, compression_estimator_text, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
     return reader.vision_heatmap(features_text, features_image)
 
-def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var_image, var_text, lr=1, train_steps=10):
-    features_image = extract_feature_map(model.vision_model, layer_idx, image_t, is_text=False)
+def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10):
+    features, _, _ = extract_feature_map(model, layer_idx, text_t, is_text=True)
     features_text = extract_feature_map(model.text_model, layer_idx, text_t, is_text=True)
     layer_image = extract_bert_layer(model.vision_model, layer_idx)
     layer_text = extract_bert_layer(model.text_model, layer_idx)
