@@ -11,14 +11,20 @@ from scripts.clip_wrapper import ContrastiveCLIPWrapper
 from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 
 # Feature Map is the output of a certain layer given X
-def extract_feature_map(model, layer_idx, x, is_text=False):
+def extract_feature_map(model, layer_idx, text, image, is_text=False):
     with torch.no_grad():
         if is_text:
-            states = model.get_text_features(x, output_hidden_states=True)
+            text_encoder = model.text_model
+            text_features = text_encoder(text, output_hidden_states=True)
+            feature = text_features['hidden_states'][layer_idx + 1]
+            image_features = model.get_image_features(image, output_hidden_states=False)
         else:
-            states = model.get_image_features(x, output_hidden_states=True)
-        feature = states['hidden_states'][layer_idx + 1]  # +1 because the first output is embedding
-        return feature
+            image_encoder = model.vision_model
+            image_features = image_encoder(image, output_hidden_states=True)
+            feature = image_features['hidden_states'][layer_idx + 1]
+            text_features = model.get_text_features(text, output_hidden_states=False)
+
+        return feature, text_features, image_features
 
 # Extract BERT Layer
 def extract_bert_layer(model, layer_idx):
