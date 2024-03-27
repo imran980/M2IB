@@ -129,7 +129,7 @@ class InformationBottleneck(nn.Module):
 
 
 class IBAInterpreter:
-    def __init__(self, model, estim: Estimator, beta, steps=10, lr=1, batch_size=10, progbar=False):
+    def __init__(self, model, estim, beta, steps=10, lr=1, batch_size=10, progbar=False):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
         self.original_layer = estim.get_layer()
@@ -141,18 +141,18 @@ class IBAInterpreter:
         self.lr = lr
         self.train_steps = steps
         self.bottleneck = InformationBottleneck(estim.mean(), estim.std(), device=self.device)
+        self.cross_attention = CrossAttentionLayer(model.text_model.config.hidden_size)  # Add this line
         self.sequential = mySequential(self.original_layer, self.cross_attention, self.bottleneck)
-        self.cross_attention = CrossAttentionLayer()
 
     def text_heatmap(self, text_t, image_t):
         saliency, loss_c, loss_f, loss_t = self._run_text_training(text_t, image_t)
         saliency = torch.nansum(saliency, -1).cpu().detach().numpy()
         saliency = normalize(saliency)
         return normalize(saliency)
-    
+
     def vision_heatmap(self, text_t, image_t):
         saliency, loss_c, loss_f, loss_t = self._run_vision_training(text_t, image_t)
-        saliency = torch.nansum(saliency, -1)[1:] # Discard the first because it's the CLS token
+        saliency = torch.nansum(saliency, -1)[1:]  # Discard the first because it's the CLS token
         dim = int(saliency.numel() ** 0.5)
         saliency = saliency.reshape(1, 1, dim, dim)
         saliency = torch.nn.functional.interpolate(saliency, size=224, mode='bilinear')
@@ -160,18 +160,18 @@ class IBAInterpreter:
         return normalize(saliency)
 
     def _run_text_training(self, text_t, image_t):
-        vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)
-        cross_attended_repr = self.cross_attention(text_repr, vision_repr)
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_repr)
+        vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)  # Add this line
+        cross_attended_repr = self.cross_attention(vision_repr, text_repr)  # Add this line
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_repr)  # Modify this line
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
     
     def _run_vision_training(self, text_t, image_t):
-        vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)
-        cross_attended_repr = self.cross_attention(vision_repr, text_repr)
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_repr)
+        vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)  # Add this line
+        cross_attended_repr = self.cross_attention(text_repr, vision_repr)  # Modify this line
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_repr)  # Modify this line
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
