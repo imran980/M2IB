@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 from scripts.utils import replace_layer, normalize, mySequential
+from cross_attention import CrossAttentionLayer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Estimator:
@@ -140,7 +141,8 @@ class IBAInterpreter:
         self.lr = lr
         self.train_steps = steps
         self.bottleneck = InformationBottleneck(estim.mean(), estim.std(), device=self.device)
-        self.sequential = mySequential(self.original_layer, self.bottleneck)
+        self.sequential = mySequential(self.original_layer, self.cross_attention, self.bottleneck)
+        self.cross_attention = CrossAttentionLayer()
 
     def text_heatmap(self, text_t, image_t):
         saliency, loss_c, loss_f, loss_t = self._run_text_training(text_t, image_t)
@@ -158,14 +160,18 @@ class IBAInterpreter:
         return normalize(saliency)
 
     def _run_text_training(self, text_t, image_t):
+        vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)
+        cross_attended_repr = self.cross_attention(text_repr, vision_repr)
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_repr)
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
     
     def _run_vision_training(self, text_t, image_t):
+        vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)
+        cross_attended_repr = self.cross_attention(vision_repr, text_repr)
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_repr)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
