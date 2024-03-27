@@ -11,7 +11,10 @@ from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 
 # Feature Map is the output of a certain layer given X
 def extract_feature_map(model, layer_idx, x, is_text=False):
+    print("anything-----------------------------------")
+    print("printing test--------------------", dir(model))
     print("third vision model--------------------:", model.vision_model)
+    
     with torch.no_grad():
         if is_text:
             print("first vision model--------------------:", model.vision_model)
