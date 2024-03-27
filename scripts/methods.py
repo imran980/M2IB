@@ -13,11 +13,13 @@ from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 def extract_feature_map(model, layer_idx, x, is_text=False):
     with torch.no_grad():
         if is_text:
+            print("first vision model--------------------:", model.vision_model)
             text_encoder = model.text_model
             text_features = text_encoder(x, output_hidden_states=True)
             feature = text_features['hidden_states'][layer_idx + 1]
             image_features = model.get_image_features(x, output_hidden_states=False)
         else:
+            print("second vision model--------------------:", model.vision_model)
             image_encoder = model.vision_model
             image_features = image_encoder(x, output_hidden_states=True)
             feature = image_features['hidden_states'][layer_idx + 1]
@@ -54,7 +56,7 @@ def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_s
     return reader.text_heatmap(text_t, image_t)
 
 def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
-    print("print vision model--------------------:", model.vision_model)
+    #print("print vision model--------------------:", model.vision_model)
     features = extract_feature_map(model.vision_model, layer_idx, image_t)
     layer = extract_bert_layer(model.vision_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
