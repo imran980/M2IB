@@ -141,11 +141,11 @@ class IBAInterpreter:
         self.lr = lr
         self.train_steps = steps
         self.bottleneck = InformationBottleneck(estim.mean(), estim.std(), device=self.device)
-        self.cross_attention = CrossAttentionLayer(model.text_model.config.hidden_size)  # Add this line
+        self.cross_attention = CrossAttentionLayer(dim_model=self.model.text_model.embeddings.token_embedding.weight.shape[-1])
         self.sequential = mySequential(self.original_layer, self.cross_attention, self.bottleneck)
 
     def text_heatmap(self, text_t, image_t):
-        saliency, loss_c, loss_f, loss_t = self._run_text_training(text_t, image_t)
+        saliency, loss_c, loss_f, loss_t = self._run_text_training(text_t, image_t)     
         saliency = torch.nansum(saliency, -1).cpu().detach().numpy()
         saliency = normalize(saliency)
         return normalize(saliency)
@@ -161,17 +161,17 @@ class IBAInterpreter:
 
     def _run_text_training(self, text_t, image_t):
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
-        vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)  # Add this line
-        cross_attended_repr = self.cross_attention(vision_repr, text_repr)  # Add this line
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_repr)  # Modify this line
+        vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)
+        cross_attended_vision, cross_attended_text = self.cross_attention(vision_repr, text_repr)
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_text)
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
     
     def _run_vision_training(self, text_t, image_t):
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-        vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)  # Add this line
-        cross_attended_repr = self.cross_attention(text_repr, vision_repr)  # Modify this line
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_repr)  # Modify this line
+        vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)
+        cross_attended_vision, cross_attended_text = self.cross_attention(vision_repr, text_repr)
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_vision)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
