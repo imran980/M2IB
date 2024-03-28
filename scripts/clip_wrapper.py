@@ -48,23 +48,17 @@ class image_encoder_wrapper(nn.Module):
             x = self.embeddings(x)
         x = self.ln_pre(x).to(self.dtype)
         # x = x.permute(1, 0, 2)  # NLD -> LND
-        hidden_states = [x.clone().detach()]
+        hidden_states = []
         for layer in self.transformer.resblocks:
-            # Apply cross-attention between image and text features
-            cross_attention_output = layer.cross_attn(x.to(self.dtype), text_features)
-    
-            # Combine the output of the self-attention and cross-attention
-            x = layer(x.to(self.dtype), cross_attention_output)
-    
-            if type(x) == tuple and len(x) == 1:
-                x = x[0]
+            x = layer(x.to(self.dtype))
+            if type(x) == tuple and len(x) == 1: x = x[0]
             hidden_states.append(x.clone().detach())
         # x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_post(x[:, 0, :]).type(self.dtype)
         if self.proj is not None:
             x = x @ self.proj
         if output_hidden_states:
-            return {'pooler_output': x, 'hidden_states': hidden_states}
+            return x, hidden_states
         else:
             return x
 
