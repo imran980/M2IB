@@ -11,24 +11,14 @@ from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 
 # Feature Map is the output of a certain layer given X
 def extract_feature_map(model, layer_idx, x, is_text=False):
-    print("anything-----------------------------------")
-    print("model from extract feature map--------------------", dir(model))
-    print("third vision model--------------------:", model.vision_model)
-    
-    with torch.no_grad():
-        if is_text:
-            print("first vision model--------------------:", model.vision_model)
-            text_encoder = model.text_model
-            text_features = text_encoder(x, output_hidden_states=True)
-            feature = text_features['hidden_states'][layer_idx + 1]
-            image_features = model.get_image_features(x, output_hidden_states=False)
-        else:
-            print("second vision model--------------------:", model.vision_model)
-            image_encoder = model.vision_model
-            image_features = image_encoder(x, output_hidden_states=True)
-            feature = image_features['hidden_states'][layer_idx + 1]
-            text_features = model.get_text_features(x, output_hidden_states=False)
-
+    if is_text:
+        text_features = model.get_text_features(x.long(), output_hidden_states=True)
+        feature = text_features['hidden_states'][layer_idx + 1]
+        return feature, text_features, None
+    else:
+        image_features = model.get_image_features(x, output_hidden_states=True)
+        feature = image_features['hidden_states'][layer_idx + 1]
+        text_features = model.get_text_features(x.long(), output_hidden_states=False)
         return feature, text_features, image_features
 
 # Extract BERT Layer
@@ -60,8 +50,7 @@ def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_s
     return reader.text_heatmap(text_t, image_t)
 
 def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
-    print("model from vision heatmap iba--------------------:", dir(model))
-    features = extract_feature_map(model, layer_idx, image_t)
+    features = extract_feature_map(model, layer_idx, image_t, is_text=False)
     layer = extract_bert_layer(model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
     reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
