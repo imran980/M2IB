@@ -12,7 +12,7 @@ from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 # Feature Map is the output of a certain layer given X
 def extract_feature_map(model, layer_idx, x, is_text=False):
     print("anything-----------------------------------")
-    print("printing test--------------------", dir(model))
+    print("model from extract feature map--------------------", dir(model))
     print("third vision model--------------------:", model.vision_model)
     
     with torch.no_grad():
@@ -60,7 +60,7 @@ def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_s
     return reader.text_heatmap(text_t, image_t)
 
 def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
-    #print("print vision model--------------------:", model.vision_model)
+    print("model from vision heatmap iba--------------------:", dir(model))
     features = extract_feature_map(model.vision_model, layer_idx, image_t)
     layer = extract_bert_layer(model.vision_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
