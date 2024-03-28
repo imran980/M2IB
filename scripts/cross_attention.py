@@ -2,25 +2,26 @@ import torch
 import torch.nn as nn
 
 class CrossAttentionLayer(nn.Module):
-    def __init__(self, dim):
+    def __init__(self, dim_model):
         super(CrossAttentionLayer, self).__init__()
-        self.dim = dim
-        self.query_projection = nn.Linear(dim, dim)
-        self.key_projection = nn.Linear(dim, dim)
-        self.value_projection = nn.Linear(dim, dim)
-        self.output_projection = nn.Linear(dim, dim)
+        self.dim_model = dim_model
+        self.query = nn.Linear(dim_model, dim_model)
+        self.key = nn.Linear(dim_model, dim_model)
+        self.value = nn.Linear(dim_model, dim_model)
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, vision_repr, text_repr):
-        batch_size = vision_repr.size(0)
-        query = self.query_projection(vision_repr).view(batch_size, -1, self.dim)
-        key = self.key_projection(text_repr).view(batch_size, -1, self.dim)
-        value = self.value_projection(text_repr).view(batch_size, -1, self.dim)
+        # Calculate attention scores
+        query = self.query(vision_repr)
+        key = self.key(text_repr)
+        attention_scores = torch.matmul(query, key.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.dim_model))
 
-        attention_scores = torch.bmm(query, key.transpose(1, 2))
-        attention_scores = attention_scores / (self.dim ** 0.5)
-        attention_probs = nn.Softmax(dim=-1)(attention_scores)
+        # Compute attention weights
+        attention_weights = self.softmax(attention_scores)
 
-        cross_attended_repr = torch.bmm(attention_probs, value)
-        cross_attended_repr = self.output_projection(cross_attended_repr.view(batch_size, -1, self.dim))
+        # Calculate cross-attended representations
+        value = self.value(text_repr)
+        cross_attended_vision = torch.matmul(attention_weights, value)
+        cross_attended_text = torch.matmul(attention_weights.transpose(-2, -1), vision_repr)
 
-        return cross_attended_repr
+        return cross_attended_vision, cross_attended_text
