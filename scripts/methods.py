@@ -13,11 +13,15 @@ from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 def extract_feature_map(model, layer_idx, x, is_text=False):
     if is_text:
         text_features = model.get_text_features(x.long(), output_hidden_states=True)
-        feature = text_features[1][layer_idx + 1]  # Access the hidden_states list directly
-        return feature, text_features[0], None
+        feature = text_features['hidden_states'][layer_idx + 1]
+        return feature, text_features, None
     else:
-        image_features, hidden_states = model.get_image_features(x, output_hidden_states=True)
-        feature = hidden_states[layer_idx + 1]  # Access the hidden_states list directly
+        image_features = model.get_image_features(x, output_hidden_states=True)
+        if isinstance(image_features, tuple):
+            hidden_states = image_features[1]
+        else:
+            hidden_states = [image_features]
+        feature = hidden_states[layer_idx + 1]
         text_features = model.get_text_features(x.long(), output_hidden_states=False)
         return feature, text_features, image_features
 
