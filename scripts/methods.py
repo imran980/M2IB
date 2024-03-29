@@ -17,10 +17,7 @@ def extract_feature_map(model, layer_idx, x, is_text=False):
         return feature, text_features, None
     else:
         image_features = model.get_image_features(x, output_hidden_states=True)
-        if isinstance(image_features, tuple):
-            hidden_states = image_features[1]
-        else:
-            hidden_states = [image_features]
+        hidden_states = image_features['hidden_states']
         feature = hidden_states[layer_idx + 1]
         text_features = model.get_text_features(x.long(), output_hidden_states=False)
         return feature, text_features, image_features
