@@ -12,6 +12,8 @@ class CrossAttentionLayer(nn.Module):
 
     def forward(self, vision_repr, text_repr):
         # Calculate attention scores
+        print("vision repr------------------:", vision_repr)
+        print("text repr------------------:", text_repr)
         query = self.query(vision_repr)
         key = self.key(text_repr)
         attention_scores = torch.matmul(query, key.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.dim_model))
