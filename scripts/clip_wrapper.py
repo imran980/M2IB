@@ -121,7 +121,11 @@ class ClipWrapper(nn.Module):
         self.dtype = model.dtype
 
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
+        print("x value -----------------:", x)
+        print("model value -----------------:", self.vision_model(x, output_hidden_states, emb_input))
         return self.vision_model(x, output_hidden_states, emb_input)
 
     def get_text_features(self, x, output_hidden_states=False, emb_input=False):
+        print("x value -----------------:", x)
+        print("model value -----------------:", self.text_model(x, output_hidden_states, emb_input))
         return self.text_model(x, output_hidden_states, emb_input)
