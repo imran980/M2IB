@@ -10,17 +10,11 @@ import torch
 from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 
 # Feature Map is the output of a certain layer given X
-def extract_feature_map(model, layer_idx, x, is_text=False):
-    if is_text:
-        text_features = model.get_text_features(x.long(), output_hidden_states=True)
-        feature = text_features['hidden_states'][layer_idx + 1]
-        return feature, text_features, None
-    else:
-        image_features = model.get_image_features(x, output_hidden_states=True)
-        hidden_states = image_features['hidden_states']
-        feature = hidden_states[layer_idx + 1]
-        text_features = model.get_text_features(x.long(), output_hidden_states=False)
-        return feature, text_features, image_features
+def extract_feature_map(model, layer_idx, x):
+    with torch.no_grad():
+        states = model(x, output_hidden_states=True) 
+        feature = states['hidden_states'][layer_idx+1] # +1 because the first output is embedding 
+        return feature
 
 # Extract BERT Layer
 def extract_bert_layer(model, layer_idx):
@@ -51,8 +45,8 @@ def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_s
     return reader.text_heatmap(text_t, image_t)
 
 def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
-    features = extract_feature_map(model, layer_idx, image_t, is_text=False)
-    layer = extract_bert_layer(model, layer_idx)
+    features = extract_feature_map(model.vision_model, layer_idx, image_t)
+    layer = extract_bert_layer(model.vision_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
     reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
     return reader.vision_heatmap(text_t, image_t)
