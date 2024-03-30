@@ -189,7 +189,10 @@ class IBAInterpreter:
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck",
                       disable=not self.progbar):
             optimizer.zero_grad()
+            print("batch[0]---------------------:", batch[0])
+            print("batch[1]---------------------:", batch[1])
             out = self.model.get_text_features(batch[0]), self.model.get_image_features(batch[1])
+            print("Out---------------------:", out)
             loss_c, loss_f, loss_t = self.calc_loss(outputs=out[0], labels=out[1])
             loss_t.backward()
             optimizer.step(closure=None)
