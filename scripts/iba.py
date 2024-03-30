@@ -168,6 +168,8 @@ class IBAInterpreter:
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
     
     def _run_vision_training(self, text_t, image_t):
+        print("text_t ---------------------:", text_t)
+        print("image_t ---------------------:", image_t)
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
         vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)
         print("vision_repr -------------------:", vision_repr)
