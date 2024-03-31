@@ -173,7 +173,7 @@ class IBAInterpreter:
 
         # Preprocess and batch the input tensors
         text_t = text_t.unsqueeze(0)  # Add a batch dimension
-        image_t = image_t.unsqueeze(0)  # Add a batch dimension
+        image_t = image_t / 255.0  # Add a batch dimension
 
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
 
