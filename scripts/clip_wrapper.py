@@ -96,7 +96,8 @@ class text_encoder_wrapper(nn.Module):
         hidden_states = [x.clone().detach()]  # embedding output
         for layer in self.transformer.resblocks:
             # Apply cross-attention between text and image features
-            cross_attention_output = layer.cross_attn(x.to(self.dtype), image_features)
+            cross_attention_output = layer.cross_attn(x.to(self.dtype), image_features.to(self.dtype))
+
     
             # Combine the output of the self-attention and cross-attention
             x = layer(x.to(self.dtype), cross_attention_output)
