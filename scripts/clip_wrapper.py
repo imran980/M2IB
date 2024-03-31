@@ -117,6 +117,7 @@ class text_encoder_wrapper(nn.Module):
 class ClipWrapper(nn.Module):
     def __init__(self, model):
         super().__init__()
+        print("clipwrapper------------------:")
         print("Model object--------------------:", model)
         print("Model visual--------------------:", model.visual)
         self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype).to(device)
