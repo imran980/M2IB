@@ -12,18 +12,19 @@ class CrossAttentionLayer(nn.Module):
 
     def forward(self, vision_repr, text_repr):
         # Calculate attention scores
-        print("vision repr------------------:", vision_repr)
-        print("text repr------------------:", text_repr)
+        print("vision repr crossattentionlayer------------------:", vision_repr)
+        print("text repr crossattentionlayer------------------:", text_repr)
         query = self.query(vision_repr)
         key = self.key(text_repr)
         attention_scores = torch.matmul(query, key.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.dim_model))
 
         # Compute attention weights
         attention_weights = self.softmax(attention_scores)
-
+        print("attention_weights crossattentionlayer------------------:", attention_weights)
         # Calculate cross-attended representations
         value = self.value(text_repr)
         cross_attended_vision = torch.matmul(attention_weights, value)
         cross_attended_text = torch.matmul(attention_weights.transpose(-2, -1), vision_repr)
-
+        print("cross_attended_vision crossattentionlayer------------------:", cross_attended_vision)
+        print("cross_attended_text crossattentionlayer------------------:", cross_attended_text)
         return cross_attended_vision, cross_attended_text
