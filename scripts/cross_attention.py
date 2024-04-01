@@ -15,9 +15,11 @@ class CrossAttentionLayer(nn.Module):
         print("vision repr crossattentionlayer------------------:", vision_repr)
         print("text repr crossattentionlayer------------------:", text_repr)
         query = self.query(vision_repr)
+        print("query crossattentionlayer------------------:", query)
         key = self.key(text_repr)
+        print("key crossattentionlayer------------------:", key)
         attention_scores = torch.matmul(query, key.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.dim_model))
-
+        print("attention_scores crossattentionlayer------------------:", attention_scores)
         # Compute attention weights
         attention_weights = self.softmax(attention_scores)
         print("attention_weights crossattentionlayer------------------:", attention_weights)
