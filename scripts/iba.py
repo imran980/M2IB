@@ -168,8 +168,8 @@ class IBAInterpreter:
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
     
     def _run_vision_training(self, text_t, image_t):
-        #print("text_t ---------------------:", text_t)
-        #print("image_t ---------------------:", image_t)
+        print("text_t ---------------------:", text_t)
+        print("image_t ---------------------:", image_t)
 
         # Preprocess and batch the input tensors
         text_t = text_t.unsqueeze(0)  # Add a batch dimension
