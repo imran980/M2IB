@@ -11,6 +11,7 @@ from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 
 # Feature Map is the output of a certain layer given X
 def extract_feature_map(model, layer_idx, x):
+    print("methods x----------------:", x)
     with torch.no_grad():
         states = model(x, output_hidden_states=True) 
         feature = states['hidden_states'][layer_idx+1] # +1 because the first output is embedding 
