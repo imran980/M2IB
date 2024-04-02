@@ -45,7 +45,10 @@ def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_s
     return reader.text_heatmap(text_t, image_t)
 
 def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
+    print("methods text_t-------------------:",text_t)
+    print("methods image_t-------------------:",image_t)
     features = extract_feature_map(model.vision_model, layer_idx, image_t)
+    print("methods features-------------------:",features)
     layer = extract_bert_layer(model.vision_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
     reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
