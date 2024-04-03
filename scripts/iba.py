@@ -171,13 +171,14 @@ class IBAInterpreter:
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
     
     def _run_vision_training(self, text_t, image_t):
-        print("text_t ---------------------:", text_t)
-        print("image_t ---------------------:", image_t)
+        print("_run_vision_training text_t ---------------------:", text_t)
+        print("_run_vision_training image_t ---------------------:", image_t)
 
         # Preprocess and batch the input tensors
         text_t = text_t.unsqueeze(0)  # Add a batch dimension
-        image_t = image_t / 255.0  # Add a batch dimension
-
+        image_t = image_t.unsqueeze(0)
+        print("unsqueeze text_t ---------------------:", text_t)
+        print("unsqueeze image_t ---------------------:", image_t)
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
 
         #print("After replace_layer, self.model.vision_model:", self.model.vision_model)
