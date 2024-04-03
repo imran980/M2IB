@@ -184,10 +184,11 @@ class IBAInterpreter:
         #print("After replace_layer, self.model.vision_model:", self.model.vision_model)
         #print("After replace_layer, self.model.text_model:", self.model.text_model)
 
-        print("Calling get_image_features...")
-        vision_repr = self.model.get_image_features(image_t)
         print("Calling get_text_features...")
         text_repr = self.model.get_text_features(text_t)
+        print("Calling get_image_features...")
+        vision_repr = self.model.get_image_features(image_t)
+        
 
         print("vision_repr from IBAinterpreter -------------------:", vision_repr)
         print("text_repr from IBAinterpreter-------------------:", text_repr)
