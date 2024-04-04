@@ -174,7 +174,9 @@ class IBAInterpreter:
     def _run_vision_training(self, text_t, image_t):
         print("_run_vision_training text_t ---------------------:", text_t)
         print("_run_vision_training image_t ---------------------:", image_t)
-
+        batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
+        print("batch[0]---------:", batch[0])
+        print("batch[1]---------:", batch[1])
         # Preprocess and batch the input tensors
         #text_t = text_t.unsqueeze(0) 
         #image_t = image_t.permute(0, 3, 1, 2)  # Now image_t has shape [1, 3, 224, 224]
