@@ -186,6 +186,7 @@ class IBAInterpreter:
 
         print("Calling get_text_features...")
         text_repr = self.model.get_text_features(text_t)
+        print("run_vision_training text_repr------------------------:", text_repr)
         print("Calling get_image_features...")
         vision_repr = self.model.get_image_features(image_t)
         
