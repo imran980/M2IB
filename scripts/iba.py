@@ -188,11 +188,11 @@ class IBAInterpreter:
         #print("After replace_layer, self.model.text_model:", self.model.text_model)
 
         print("Calling get_text_features...")
-        text_repr = self.model.get_text_features(text_t)
+        text_repr = self.model.get_text_features(batch[0])
         print("run_vision_training text_repr------------------------:", text_repr)
         print("Calling get_image_features...")
         pdb.set_trace()
-        vision_repr = self.model.get_image_features(image_t)
+        vision_repr = self.model.get_image_features(batch[1])
         
 
         print("vision_repr from IBAinterpreter -------------------:", vision_repr)
