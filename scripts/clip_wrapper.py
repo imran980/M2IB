@@ -123,7 +123,7 @@ class ClipWrapper(nn.Module):
         print("clipwrapper------------------:")
         #print("Model object--------------------:",dir(model))
         print("Model visual--------------------:", model.visual)
-        pdb.set_trace()
+        #pdb.set_trace()
         self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype).to(device)
         self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
         self.dtype = model.dtype
