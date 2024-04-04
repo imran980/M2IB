@@ -6,6 +6,7 @@ import copy
 import torch
 import torch.nn as nn
 from functools import partial
+import pdb
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def permute_then_forward(self, x):
@@ -122,6 +123,7 @@ class ClipWrapper(nn.Module):
         print("clipwrapper------------------:")
         #print("Model object--------------------:",dir(model))
         print("Model visual--------------------:", model.visual)
+        pdb.set_trace()
         self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype).to(device)
         self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
         self.dtype = model.dtype
