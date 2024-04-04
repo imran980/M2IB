@@ -10,6 +10,7 @@ from tqdm import tqdm
 from scripts.utils import replace_layer, normalize, mySequential
 from scripts.cross_attention import CrossAttentionLayer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+import pdb
 
 class Estimator:
     """
@@ -188,6 +189,7 @@ class IBAInterpreter:
         text_repr = self.model.get_text_features(text_t)
         print("run_vision_training text_repr------------------------:", text_repr)
         print("Calling get_image_features...")
+        pdb.set_trace()
         vision_repr = self.model.get_image_features(image_t)
         
 
