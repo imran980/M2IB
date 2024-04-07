@@ -10,9 +10,7 @@ class CrossAttention(nn.Module):
 
     def forward(self, text_features, image_features):
         projected_text = self.text_proj(text_features)  # [batch_size, text_len, hidden_dim]
-        print("Cross attention layer projected_text- -------------:, projected_text")
         projected_image = self.image_proj(image_features)  # [batch_size, image_len, hidden_dim]
-        print("Cross attention layer projected_image- -------------:", projected_image)
 
         attention_scores = self.attn_weight(torch.tanh(projected_text.unsqueeze(2) + projected_image.unsqueeze(1)))  # [batch_size, text_len, image_len, 1]
         attention_scores = attention_scores.squeeze(-1)  # [batch_size, text_len, image_len]
