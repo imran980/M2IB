@@ -14,21 +14,16 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
 class mySequential(nn.Sequential):
-    def forward(self, _input, attention_mask=None, causal_attention_mask=None, output_attentions=False, output_hidden_states=False, return_dict=False, **kwargs):
+    def forward(self, _input, **kwargs):
         for module in self._modules.values():
             if isinstance(module, CrossAttentionLayer):
                 vision_repr, text_repr = _input
                 _input = module(vision_repr, text_repr)
-            elif isinstance(module, 9):
-                if type(_input) == tuple:
-                    _input = module(*_input, attention_mask=attention_mask, causal_attention_mask=causal_attention_mask, output_attentions=output_attentions, return_dict=return_dict, **kwargs)
-                else:
-                    _input = module(_input, attention_mask=attention_mask, causal_attention_mask=causal_attention_mask, output_attentions=output_attentions, return_dict=return_dict, **kwargs)
             else:
                 if type(_input) == tuple:
-                    _input = module(*_input, attention_mask=attention_mask, causal_attention_mask=causal_attention_mask, output_attentions=output_attentions, output_hidden_states=output_hidden_states, return_dict=return_dict, **kwargs)
+                    _input = module(*_input)
                 else:
-                    _input = module(_input, attention_mask=attention_mask, causal_attention_mask=causal_attention_mask, output_attentions=output_attentions, output_hidden_states=output_hidden_states, return_dict=return_dict, **kwargs)
+                    _input = module(_input)
         return _input
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
