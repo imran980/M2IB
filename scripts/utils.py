@@ -19,7 +19,7 @@ class mySequential(nn.Sequential):
             if isinstance(module, CrossAttentionLayer):
                 vision_repr, text_repr = _input
                 _input = module(vision_repr, text_repr)
-            elif isinstance(module, CLIPEncoderLayer):
+            elif isinstance(module, 9):
                 if type(_input) == tuple:
                     _input = module(*_input, attention_mask=attention_mask, causal_attention_mask=causal_attention_mask, output_attentions=output_attentions, return_dict=return_dict, **kwargs)
                 else:
