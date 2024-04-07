@@ -130,7 +130,8 @@ class InformationBottleneck(nn.Module):
 
 
 class IBAInterpreter:
-    def __init__(self, model, estim: Estimator, beta, steps=10, lr=1, batch_size=10, progbar=False, cross_attn_dim=512):
+    def __init__(self, model, estim: Estimator, beta, steps=10, lr=1, batch_size=10, progbar=False, dim_model=512):
+
 
 
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -144,7 +145,7 @@ class IBAInterpreter:
         self.lr = lr
         self.train_steps = steps
         self.bottleneck = InformationBottleneck(estim.mean(), estim.std(), device=self.device)
-        self.cross_attention = CrossAttentionLayer(model.text_model.pooler_output.shape[-1])
+        self.cross_attention = CrossAttentionLayer(dim_model)
 
         self.sequential = mySequential(self.original_layer, self.cross_attention, self.bottleneck)
 
