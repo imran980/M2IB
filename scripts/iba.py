@@ -181,13 +181,14 @@ class IBAInterpreter:
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _run_vision_training(self, text_t, image_t):
+        print(f"Image tensor shape: {image_t.shape}") 
         print("_run_vision_training text_t------------------------:", text_t)
         print("_run_vision_training image_t------------------------:", image_t)
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
         text_features = self.model.get_text_features(text_t)
         print("_run_vision_training text_features------------------------:", text_features)
         image_features = self.model.get_image_features(image_t)
-        print("_run_vision_training image_features------------------------:", image_features)
+        print(f"Image features shape: {image_features.shape}")
         attended_text, attended_image = self.cross_attention(image_features, text_features)
         loss_c, loss_f, loss_t = self._train_bottleneck(attended_image, attended_text)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
