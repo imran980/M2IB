@@ -38,19 +38,20 @@ def get_compression_estimator(var, layer, features):
     return estimator
 
 
-def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
-    features = extract_feature_map(model, layer_idx, text_t)
-    layer = extract_bert_layer(model, layer_idx)
+def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True, cross_attn_dim=512):
+    print("text heatmap iba text_t-----------------------",text_t)
+    print("text heatmap iba image_t-----------------------",image_t )
+    features = extract_feature_map(model.text_model, layer_idx, text_t)
+    layer = extract_bert_layer(model.text_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
-    reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
+    reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar, cross_attn_dim=cross_attn_dim)
     return reader.text_heatmap(text_t, image_t)
 
-def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
-    print("methods text_t-------------------:",text_t)
-    print("methods image_t-------------------:",image_t)
+def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True, cross_attn_dim=512):
+    print("vision_heatmap_iba text_t-----------------------",text_t)
+    print("vision_heatmap_iba image_t-----------------------",image_t )
     features = extract_feature_map(model.vision_model, layer_idx, image_t)
-    print("methods features-------------------:",features)
     layer = extract_bert_layer(model.vision_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
-    reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
+    reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar, cross_attn_dim=cross_attn_dim)
     return reader.vision_heatmap(text_t, image_t)
