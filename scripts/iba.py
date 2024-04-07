@@ -130,7 +130,7 @@ class InformationBottleneck(nn.Module):
 
 
 class IBAInterpreter:
-    def __init__(self, model, estim, beta, steps=10, lr=1, batch_size=10, progbar=False):
+    def __init__(self, model, estim: Estimator, beta, steps=10, lr=1, batch_size=10, progbar=False, cross_attn_dim=512):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
         self.original_layer = estim.get_layer()
@@ -142,7 +142,9 @@ class IBAInterpreter:
         self.lr = lr
         self.train_steps = steps
         self.bottleneck = InformationBottleneck(estim.mean(), estim.std(), device=self.device)
-        self.cross_attention = CrossAttentionLayer(dim_model=self.model.text_model.embeddings.token_embedding.weight.shape[-1])
+        self.cross_attention = CrossAttention(model.text_model.text_projection.weight.shape[1],
+                                              model.vision_model.proj.weight.shape[1],
+                                              cross_attn_dim)
         self.sequential = mySequential(self.original_layer, self.cross_attention, self.bottleneck)
 
     def text_heatmap(self, text_t, image_t):
@@ -165,49 +167,26 @@ class IBAInterpreter:
 
     def _run_text_training(self, text_t, image_t):
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
-        vision_repr, text_repr = self.model.get_image_features(image_t), self.model.get_text_features(text_t)
-        cross_attended_vision, cross_attended_text = self.cross_attention(vision_repr, text_repr)
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_text)
+        text_features, image_features = self.model.get_text_features(text_t), self.model.get_image_features(image_t)
+        attended_text, attended_image = self.cross_attention(text_features, image_features)
+        loss_c, loss_f, loss_t = self._train_bottleneck(attended_text, attended_image)
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
     
     def _run_vision_training(self, text_t, image_t):
-        print("_run_vision_training text_t ---------------------:", text_t)
-        print("_run_vision_training image_t ---------------------:", image_t)
-        batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
-        print("batch[0]---------:", batch[0])
-        print("batch[1]---------:", batch[1])
-        # Preprocess and batch the input tensors
-        #text_t = text_t.unsqueeze(0) 
-        #image_t = image_t.permute(0, 3, 1, 2)  # Now image_t has shape [1, 3, 224, 224]
-        #print("unsqueeze text_t ---------------------:", text_t)
-        #print("unsqueeze image_t ---------------------:", image_t)
+        print("run vision training text_t---------------", text_t)
+        print("run vision training image_t---------------", image_t)
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-
-        #print("After replace_layer, self.model.vision_model:", self.model.vision_model)
-        #print("After replace_layer, self.model.text_model:", self.model.text_model)
-
-        print("Calling get_text_features...")
-        text_repr = self.model.get_text_features(batch[0])
-        print("run_vision_training text_repr------------------------:", text_repr)
-        print("Calling get_image_features...")
-        pdb.set_trace()
-        vision_repr = self.model.get_image_features(batch[1])
-        
-
-        print("vision_repr from IBAinterpreter -------------------:", vision_repr)
-        print("text_repr from IBAinterpreter-------------------:", text_repr)
-        print("text_repr shape IBA interpreter---------------:", text_repr.shape)
-
-        cross_attended_vision, cross_attended_text = self.cross_attention(vision_repr, text_repr)
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_vision)
-
+        text_features, image_features = self.model.get_text_features(text_t), self.model.get_image_features(image_t)
+        print("run vision training text_features---------------", text_features)
+        print("run vision training image_features---------------", image_features)
+        attended_text, attended_image = self.cross_attention(text_features, image_features)
+        loss_c, loss_f, loss_t = self._train_bottleneck(attended_image, attended_text)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
-
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
-        batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
+        batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         # Reset from previous run or modifications
         self.bottleneck.reset_alpha()
