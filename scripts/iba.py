@@ -170,7 +170,7 @@ class IBAInterpreter:
     def _run_text_training(self, text_t, image_t):
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
         text_features, image_features = self.model.get_text_features(text_t), self.model.get_image_features(image_t)
-        attended_text, attended_image = self.cross_attention(image_features, text_features)
+        attended_text, attended_image = self.cross_attention(text_features, image_features)
         loss_c, loss_f, loss_t = self._train_bottleneck(attended_text, attended_image)
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
