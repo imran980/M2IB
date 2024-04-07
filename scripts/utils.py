@@ -14,17 +14,13 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
 class mySequential(nn.Sequential):
-    def forward(self, _input, **kwargs):
+    def forward(self, *input, **kwargs):
         for module in self._modules.values():
-            if isinstance(module, CrossAttentionLayer):
-                vision_repr, text_repr = _input
-                _input = module(vision_repr, text_repr)
+            if type(input) == tuple:
+                input = module(*input)
             else:
-                if type(_input) == tuple:
-                    _input = module(*_input)
-                else:
-                    _input = module(_input)
-        return _input
+                input = module(input)
+        return input
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     """
