@@ -16,7 +16,7 @@ def normalize(x):
 class mySequential(nn.Sequential):
     def forward(self, _input, attention_mask=None, causal_attention_mask=None, output_attentions=False, output_hidden_states=False, return_dict=False, **kwargs):
         for module in self._modules.values():
-            if isinstance(module, YourActualClassName):
+            if isinstance(module, CrossAttentionLayer):
                 vision_repr, text_repr = _input
                 _input = module(vision_repr, text_repr)
             else:
