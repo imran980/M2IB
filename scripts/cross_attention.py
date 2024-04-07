@@ -4,7 +4,6 @@ import torch.nn as nn
 class CrossAttention(nn.Module):
     def __init__(self, text_dim, image_dim, hidden_dim):
         super().__init__()
-        print("Cross attention layer- -------------:")
         self.text_proj = nn.Linear(text_dim, hidden_dim)
         self.image_proj = nn.Linear(image_dim, hidden_dim)
         self.attn_weight = nn.Linear(hidden_dim, 1)
