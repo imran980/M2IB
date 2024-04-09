@@ -122,7 +122,7 @@ class ClipWrapper(nn.Module):
         self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype).to(device)
         self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
         self.dtype = model.dtype
-        self.dim_model = model.text_projection.shape[1]  # Or any other suitable dimension
+        self.dim_model = model.text_projection.weight.shape[1]
 
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
         print("x value -----------------:", x)
