@@ -119,13 +119,10 @@ class text_encoder_wrapper(nn.Module):
 class ClipWrapper(nn.Module):
     def __init__(self, model):
         super().__init__()
-        print("clipwrapper------------------:")
-        #print("Model object--------------------:",dir(model))
-        print("Model visual--------------------:", model.visual)
-        #pdb.set_trace()
         self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype).to(device)
         self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
         self.dtype = model.dtype
+        self.dim_model = model.text_projection.shape[1]  # Or any other suitable dimension
 
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
         print("x value -----------------:", x)
