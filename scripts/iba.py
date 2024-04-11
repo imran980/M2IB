@@ -155,6 +155,8 @@ class IBAInterpreter:
     def vision_heatmap(self, text_t, image_t):
         print("vision_heatmap text_t------------------------:", text_t)
         print("vision_heatmap image_t------------------------:", image_t)
+        print("vision_heatmap text_t------------------------:", text_t.shape)
+        print("vision_heatmap image_t------------------------:", image_t.shape)
         saliency, loss_c, loss_f, loss_t = self._run_vision_training(text_t, image_t)
         print("vision_heatmap vision training--------------------", saliency, loss_c, loss_f, loss_t)
         saliency = torch.nansum(saliency, -1)[1:]  # Discard the first because it's the CLS token
