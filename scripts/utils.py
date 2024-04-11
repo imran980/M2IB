@@ -16,15 +16,15 @@ def normalize(x):
 class mySequential(nn.Sequential):
     def __init__(self, original_layer, bottleneck_layer, cross_attention_layer):
         super().__init__()
-        self.add_module('original_layer', original_layer)
-        self.add_module('cross_attention', cross_attention_layer)
-        self.add_module('bottleneck', bottleneck_layer)
+        self.original_layer = original_layer
+        self.cross_attention = cross_attention_layer
+        self.bottleneck = bottleneck_layer
 
     def forward(self, input_vision, input_text):
-        vision_repr = self._modules['original_layer'](input_vision)
-        text_repr = self._modules['original_layer'](input_text)
-        cross_attended_vision, cross_attended_text = self._modules['cross_attention'](vision_repr, text_repr)
-        bottleneck_output = self._modules['bottleneck'](cross_attended_vision, cross_attended_text)
+        vision_repr = self.original_layer(input_vision)
+        text_repr = self.original_layer(input_text)
+        cross_attended_vision, cross_attended_text = self.cross_attention(vision_repr, text_repr)
+        bottleneck_output = self.bottleneck(cross_attended_vision, cross_attended_text)
         return bottleneck_output
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
