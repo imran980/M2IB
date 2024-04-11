@@ -130,7 +130,7 @@ class InformationBottleneck(nn.Module):
 
 
 class IBAInterpreter:
-    def __init__(self, model, estim: Estimator, beta, steps=10, lr=1, batch_size=10, progbar=False, dim_model=512):
+    def __init__(self, model, estim: Estimator, beta, steps=10, lr=1, batch_size=10, progbar=False):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
         self.original_layer = estim.get_layer()
@@ -192,29 +192,28 @@ class IBAInterpreter:
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
-        print("text_t---------------------:", text_t)
-        print("image_t---------------------:", image_t)
-        batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1)
+        batch_text = text_t.expand(self.batch_size, -1)
+        batch_image = image_t.expand(self.batch_size, -1, -1, -1)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
-        # Reset from previous run or modifications
         self.bottleneck.reset_alpha()
-        # Train
+
         self.model.eval()
-        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck",
-                      disable=not self.progbar):
+        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
-            print("batch[0]---------------------:", batch[0])
-            print("batch[1]---------------------:", batch[1])
-            out = self.model.get_text_features(batch[0]), self.model.get_image_features(batch[1])
-            print("Out---------------------:", out)
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=out[0], labels=out[1])
+
+            text_repr = self.model.text_model(batch_text, self.model.get_image_features(batch_image), emb_input=True)
+            image_repr = self.model.get_image_features(batch_image)
+            cross_attended_text, cross_attended_image = self.cross_attention(image_repr, text_repr)
+
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=cross_attended_text, labels=cross_attended_image)
             loss_t.backward()
             optimizer.step(closure=None)
-        return loss_c, loss_f, loss_t 
+
+        return loss_c, loss_f, loss_t
 
     def calc_loss(self, outputs, labels):
         """ Calculate the combined loss expression for optimization of lambda """
         compression_term = self.bottleneck.buffer_capacity.mean()
         fitting_term = self.fitting_estimator(outputs, labels).mean()
-        total =  self.beta * compression_term - fitting_term
+        total = self.beta * compression_term - fitting_term
         return compression_term, fitting_term, total
