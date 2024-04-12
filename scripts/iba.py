@@ -170,7 +170,6 @@ class IBAInterpreter:
     	text_repr = self.model.get_text_features(text_t)
     	image_repr = self.model.get_image_features(image_t)
     	cross_attended_text, cross_attended_image = self.cross_attention(image_repr, text_repr)
-
     	replace_layer(self.model.text_model, self.original_layer, self.sequential)
     	loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_text, cross_attended_image)
     	replace_layer(self.model.text_model, self.sequential, self.original_layer)
@@ -178,11 +177,10 @@ class IBAInterpreter:
 
     def _run_vision_training(self, text_t, image_t):
         text_repr = self.model.get_text_features(text_t)
-    	image_repr = self.model.get_image_features(image_t)
-    	cross_attended_vision, cross_attended_image = self.cross_attention(image_repr, text_repr)
-
-    	replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-    	loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_vision, cross_attended_image)
+        image_repr = self.model.get_image_features(image_t)
+        cross_attended_vision, cross_attended_image = self.cross_attention(image_repr, text_repr)
+        replace_layer(self.model.vision_model, self.original_layer, self.sequential)
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_vision, cross_attended_image)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
