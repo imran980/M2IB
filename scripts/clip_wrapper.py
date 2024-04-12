@@ -121,7 +121,9 @@ class ClipWrapper(nn.Module):
 
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
         print("x value -----------------:", x)
-        return self.vision_model(x, output_hidden_states, emb_input)
+        # Filter out the unexpected keyword arguments
+        kwargs = {k: v for k, v in {'output_hidden_states': output_hidden_states, 'emb_input': emb_input}.items() if k in self.vision_model.forward.__code__.co_varnames}
+        return self.vision_model(x, **kwargs)
 
     def get_text_features(self, x, output_hidden_states=False, emb_input=False):
         print("x value -----------------:", x)
