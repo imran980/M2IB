@@ -24,8 +24,9 @@ class mySequential(nn.Sequential):
         vision_repr = self.original_layer(input_vision)
         text_repr = self.original_layer(input_text)
         cross_attended_vision, cross_attended_text = self.cross_attention(vision_repr, text_repr)
-        bottleneck_output = self.bottleneck(cross_attended_vision, cross_attended_text)
-        return bottleneck_output
+        bottleneck_output_vision = self.bottleneck(cross_attended_vision)
+        bottleneck_output_text = self.bottleneck(cross_attended_text)
+        return bottleneck_output_vision, bottleneck_output_text
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     """
