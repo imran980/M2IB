@@ -20,9 +20,9 @@ class mySequential(nn.Sequential):
         self.cross_attention = cross_attention_layer
         self.bottleneck = bottleneck_layer
 
-    def forward(self, input_vision, input_text):
-        vision_repr = self.original_layer(input_vision)
-        text_repr = self.original_layer(input_text)
+    def forward(self, input_vision, input_text, **kwargs):
+        vision_repr = self.original_layer(input_vision, **kwargs)
+        text_repr = self.original_layer(input_text, **kwargs)
         cross_attended_vision, cross_attended_text = self.cross_attention(vision_repr, text_repr)
         bottleneck_output_vision = self.bottleneck(cross_attended_vision)
         bottleneck_output_text = self.bottleneck(cross_attended_text)
