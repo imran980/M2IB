@@ -179,21 +179,21 @@ class IBAInterpreter:
     def _run_vision_training(self, text_t, image_t):
         text_repr = self.model.get_text_features(text_t)
         image_repr = self.model.get_image_features(image_t)
+        print("within run_vision_training---------------------:")
+        print("text_repr---------------------:", text_repr)
+        print("image_repr---------------------:", image_repr)
         cross_attended_vision, cross_attended_image = self.cross_attention(image_repr, text_repr)
 
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-
-        # Ensure that image_t has the correct shape
-        batch_size, channels, height, width = image_t.shape
-        image_t = image_t.view(batch_size, channels, height, width)
-
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_vision, image_t)
+        print("cross_attended_vision---------------------:", cross_attended_vision)
+        print("cross_attended_image---------------------:", cross_attended_image)
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_vision, cross_attended_image)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
         batch_text = text_t.expand(self.batch_size, -1)
-        batch_image = image_t.repeat(self.batch_size, 1, 1, 1)  # Repeat image_t along the batch dimension
+        batch_image = image_t.expand(self.batch_size, -1, -1, -1)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         self.bottleneck.reset_alpha()
 
