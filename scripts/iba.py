@@ -207,8 +207,6 @@ class IBAInterpreter:
         self.model.eval()
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
-            print("out_text-----------------------:", out_text)
-            print("out_vision-----------------------:", out_vision)
             loss_c, loss_f, loss_t = self.calc_loss(outputs=batch_text, labels=batch_vision)
             loss_t.backward()
             optimizer.step(closure=None)
