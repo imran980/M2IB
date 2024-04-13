@@ -210,7 +210,9 @@ class IBAInterpreter:
             loss_c, loss_f, loss_t = self.calc_loss(outputs=batch_text, labels=batch_vision)
             loss_t.backward()
             optimizer.step(closure=None)
-
+        print("loss_c-----------------------:",loss_c)
+        print("loss_f-----------------------:",loss_f)
+        print("loss_t-----------------------:",loss_t)
         return loss_c, loss_f, loss_t
 
         
