@@ -195,7 +195,6 @@ class IBAInterpreter:
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
-
     def _train_bottleneck(self, cross_attended_text, cross_attended_vision):
         print("_train_bottleneck-------------------------------------------")
         batch_text = cross_attended_text.expand(self.batch_size, -1, -1)
@@ -204,19 +203,18 @@ class IBAInterpreter:
         print("batch_vision-----------------------:", batch_vision)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         self.bottleneck.reset_alpha()
-
+    
         self.model.eval()
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
-            out_text = self.model.get_text_features(batch_text)
-            out_vision = self.model.get_image_features(batch_vision)
             print("out_text-----------------------:", out_text)
             print("out_vision-----------------------:", out_vision)
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=out_text, labels=out_vision)
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=batch_text, labels=batch_vision)
             loss_t.backward()
             optimizer.step(closure=None)
 
-        return loss_c, loss_f, loss_t 
+        return loss_c, loss_f, loss_t
+
         
         
     def calc_loss(self, outputs, labels):
