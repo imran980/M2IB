@@ -188,9 +188,11 @@ class IBAInterpreter:
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _train_bottleneck(self, cross_attended_text, cross_attended_vision):
+	print("_train_bottleneck-------------------------------------------")
     	batch_text = cross_attended_text.expand(self.batch_size, -1, -1)
     	batch_vision = cross_attended_vision.expand(self.batch_size, -1, -1)
-
+	print("batch text-----------------------:", batch_text)
+	print("batch_vision-----------------------:", batch_vision)
     	optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
     	self.bottleneck.reset_alpha()
 
@@ -199,6 +201,8 @@ class IBAInterpreter:
         	optimizer.zero_grad()
         	out_text = self.model.get_text_features(batch_text)
         	out_vision = self.model.get_image_features(batch_vision)
+		print("out_text-----------------------:", out_text)
+		print("out_vision-----------------------:", out_vision)
         	loss_c, loss_f, loss_t = self.calc_loss(outputs=out_text, labels=out_vision)
         	loss_t.backward()
         	optimizer.step(closure=None)
