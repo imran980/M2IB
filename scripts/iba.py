@@ -154,7 +154,7 @@ class IBAInterpreter:
         return normalize(saliency)
 
     def vision_heatmap(self, text_t, image_t):
-        print("vision_heatmap text_t------------------------:", text_t)
+	print("vision_heatmap text_t------------------------:", text_t)
         print("vision_heatmap image_t------------------------:", image_t)
         print("vision_heatmap text_t------------------------:", text_t.shape)
         print("vision_heatmap image_t------------------------:", image_t.shape)
@@ -175,9 +175,7 @@ class IBAInterpreter:
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
         loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_text, cross_attended_image)
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
-        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-
-    def _run_vision_training(self, text_t, image_t):
+        return self.bottleneck.def _run_vision_training(self, text_t, image_t):
         text_repr = self.model.get_text_features(text_t)
         image_repr = self.model.get_image_features(image_t)
 	print("run_vision_training-----------------------:")
@@ -186,11 +184,13 @@ class IBAInterpreter:
         cross_attended_vision, cross_attended_image = self.cross_attention(image_repr, text_repr)
 	print("cross_attended_vision-----------------------:",cross_attended_vision)
 	print("cross_attended_image-----------------------:",cross_attended_image)
+	
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
         loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_vision, cross_attended_image)
 	print("loss_c-----------------------:",loss_c)
 	print("loss_f-----------------------:",loss_f)
 	print("loss_t-----------------------:",loss_t)
+
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
