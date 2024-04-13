@@ -177,8 +177,8 @@ class IBAInterpreter:
 
     def _run_vision_training(self, text_t, image_t):
         print("run_vision_training-----------------------:")
-        print("text_repr-----------------------:",text_repr)
-        print("image_repr-----------------------:",image_repr)
+        print("text_repr-----------------------:",text_t)
+        print("image_repr-----------------------:",image_t)
         cross_attended_vision, cross_attended_image = self.cross_attention(image_t, text_t)
         print("cross_attended_vision-----------------------:",cross_attended_vision)
         print("cross_attended_image-----------------------:",cross_attended_image)
