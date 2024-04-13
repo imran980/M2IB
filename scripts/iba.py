@@ -154,7 +154,7 @@ class IBAInterpreter:
         return normalize(saliency)
 
     def vision_heatmap(self, text_t, image_t):
-        print("vision_heatmap text_t------------------------:", text_t)
+		print("vision_heatmap text_t------------------------:", text_t)
         print("vision_heatmap image_t------------------------:", image_t)
         print("vision_heatmap text_t------------------------:", text_t.shape)
         print("vision_heatmap image_t------------------------:", image_t.shape)
@@ -180,29 +180,29 @@ class IBAInterpreter:
     def _run_vision_training(self, text_t, image_t):
         text_repr = self.model.get_text_features(text_t)
         image_repr = self.model.get_image_features(image_t)
-	    print("run_vision_training-----------------------:")
-	    print("text_repr-----------------------:",text_repr)
-	    print("image_repr-----------------------:",image_repr)
+		print("run_vision_training-----------------------:")
+		print("text_repr-----------------------:",text_repr)
+		print("image_repr-----------------------:",image_repr)
         cross_attended_vision, cross_attended_image = self.cross_attention(image_repr, text_repr)
-	    print("cross_attended_vision-----------------------:",cross_attended_vision)
-	    print("cross_attended_image-----------------------:",cross_attended_image)
+		print("cross_attended_vision-----------------------:",cross_attended_vision)
+		print("cross_attended_image-----------------------:",cross_attended_image)
 	
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
         loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_vision, cross_attended_image)
-	    print("loss_c-----------------------:",loss_c)
-	    print("loss_f-----------------------:",loss_f)
-	    print("loss_t-----------------------:",loss_t)
+		print("loss_c-----------------------:",loss_c)
+		print("loss_f-----------------------:",loss_f)
+		print("loss_t-----------------------:",loss_t)
 
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _train_bottleneck(self, cross_attended_text, cross_attended_vision):
-	    print("_train_bottleneck-------------------------------------------")
+		print("_train_bottleneck-------------------------------------------")
     	batch_text = cross_attended_text.expand(self.batch_size, -1, -1)
     	batch_vision = cross_attended_vision.expand(self.batch_size, -1, -1)
-	    print("batch text-----------------------:", batch_text)
-	    print("batch_vision-----------------------:", batch_vision)
-    	optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
+		print("batch text-----------------------:", batch_text)
+		print("batch_vision-----------------------:", batch_vision)
+		optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
     	self.bottleneck.reset_alpha()
 
     	self.model.eval()
@@ -210,8 +210,8 @@ class IBAInterpreter:
         	optimizer.zero_grad()
         	out_text = self.model.get_text_features(batch_text)
         	out_vision = self.model.get_image_features(batch_vision)
-		    print("out_text-----------------------:", out_text)
-		    print("out_vision-----------------------:", out_vision)
+			print("out_text-----------------------:", out_text)
+			print("out_vision-----------------------:", out_vision)
         	loss_c, loss_f, loss_t = self.calc_loss(outputs=out_text, labels=out_vision)
         	loss_t.backward()
         	optimizer.step(closure=None)
