@@ -188,7 +188,7 @@ class IBAInterpreter:
         print("cross_attended_vision-----------------------:",cross_attended_vision)
         print("cross_attended_image-----------------------:",cross_attended_image)
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_vision, cross_attended_image)
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_image, cross_attended_vision)
         print("loss_c-----------------------:",loss_c)
         print("loss_f-----------------------:",loss_f)
         print("loss_t-----------------------:",loss_t)
@@ -197,8 +197,8 @@ class IBAInterpreter:
 
     def _train_bottleneck(self, cross_attended_text, cross_attended_vision):
         print("_train_bottleneck-------------------------------------------")
-        batch_text = cross_attended_text.expand(self.batch_size, -1, -1)
-        batch_vision = cross_attended_vision.expand(self.batch_size, -1, -1)
+        batch_text = cross_attended_text.unsqueeze(0).expand(self.batch_size, -1, -1, -1)
+        batch_vision = cross_attended_vision.unsqueeze(0).expand(self.batch_size, -1, -1, -1)
         print("batch text-----------------------:", batch_text)
         print("batch_vision-----------------------:", batch_vision)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
@@ -207,10 +207,12 @@ class IBAInterpreter:
         self.model.eval()
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
+            print("train bottleneck for loop-------------------------------------")
             # Call the forward method of the InformationBottleneck
-            bottleneck_output_text = self.bottleneck(batch_text)
+            bottleneck_output_text = self.bottleneck(batch_text)[0]
+        
             print("bottleneck_output_text-------------------:",bottleneck_output_text)
-            bottleneck_output_vision = self.bottleneck(batch_vision)
+            bottleneck_output_vision = self.bottleneck(batch_vision)[0]
             print("bottleneck_output_vision-------------------:",bottleneck_output_vision)
             loss_c, loss_f, loss_t = self.calc_loss(outputs=bottleneck_output_text, labels=bottleneck_output_vision)
             loss_t.backward()
