@@ -209,7 +209,9 @@ class IBAInterpreter:
             optimizer.zero_grad()
             # Call the forward method of the InformationBottleneck
             bottleneck_output_text = self.bottleneck(batch_text)
+            print("bottleneck_output_text-------------------:",bottleneck_output_text)
             bottleneck_output_vision = self.bottleneck(batch_vision)
+            print("bottleneck_output_vision-------------------:",bottleneck_output_vision)
             loss_c, loss_f, loss_t = self.calc_loss(outputs=bottleneck_output_text, labels=bottleneck_output_vision)
             loss_t.backward()
             optimizer.step(closure=None)
