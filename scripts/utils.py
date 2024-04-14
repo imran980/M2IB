@@ -22,16 +22,12 @@ class mySequential(nn.Sequential):
         self.mode = mode
         self.dim_model = dim_model
 
-    def forward(self, input_vision, input_text):
-        vision_repr = self.original_layer(input_vision)
-        text_repr = self.original_layer(input_text)
-        cross_attended_vision, cross_attended_text = self.cross_attention(vision_repr, text_repr)
-
-        if self.mode == 'vision':
-            bottleneck_output = self.bottleneck(cross_attended_vision)
+    def forward(self, input_vision, input_text, mode='vision'):
+        if mode == 'vision':
+            bottleneck_output = self.bottleneck(input_vision)
             return bottleneck_output
-        elif self.mode == 'text':
-            bottleneck_output = self.bottleneck(cross_attended_text)
+        elif mode == 'text':
+            bottleneck_output = self.bottleneck(input_text)
             return bottleneck_output
         else:
             raise ValueError("Invalid mode. Choose 'vision' or 'text'.")
