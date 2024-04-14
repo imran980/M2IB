@@ -205,7 +205,7 @@ class IBAInterpreter:
         #replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
-    def _train_bottleneck(self, text_t, image_t, mode='vision'):
+    def _train_bottleneck(self, cross_attended_vision, cross_attended_text, mode='vision'):
         print("_train_bottleneck-------------------------------------------")
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         self.bottleneck.reset_alpha()
@@ -214,30 +214,24 @@ class IBAInterpreter:
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
             print("train bottleneck for loop-------------------------------------")
-            text_repr = self.model.get_text_features(text_t)
-            image_repr = self.model.get_image_features(image_t)
-            print("training text ------------------", text_repr)
-            print("training image ------------------", image_repr)
-            cross_attended_text, cross_attended_image = self.cross_attention(image_repr, text_repr)
-
+            bottleneck_output = self.sequential(cross_attended_vision, cross_attended_text, mode=mode)
+    
             if mode == 'vision':
-                bottleneck_output = self.sequential(cross_attended_image, cross_attended_text, mode=mode)
                 labels = cross_attended_text
             elif mode == 'text':
-                bottleneck_output = self.sequential(cross_attended_image, cross_attended_text, mode=mode)
                 labels = cross_attended_image
             else:
                 raise ValueError("Invalid mode. Choose 'vision' or 'text'.")
 
-            loss_c, loss_f, loss_t = self.calc_loss(bottleneck_output, labels)
+             loss_c, loss_f, loss_t = self.calc_loss(bottleneck_output, labels)
             loss_t.backward()
             optimizer.step(closure=None)
         print("loss_c-----------------------:",loss_c)
         print("loss_f-----------------------:",loss_f)
         print("loss_t-----------------------:",loss_t)
         return loss_c, loss_f, loss_t
-
         
+
     def calc_loss(self, outputs, labels):
         """ Calculate the combined loss expression for optimization of lambda """
         compression_term = self.bottleneck.buffer_capacity.mean()
