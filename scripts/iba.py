@@ -205,26 +205,31 @@ class IBAInterpreter:
         #replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
-    def _train_bottleneck(self, cross_attended_text, cross_attended_vision):
+    def _train_bottleneck(self, text_t, image_t, mode='vision'):
         print("_train_bottleneck-------------------------------------------")
-        batch_text = cross_attended_text.unsqueeze(0).expand(self.batch_size, -1, -1, -1)
-        batch_vision = cross_attended_vision.unsqueeze(0).expand(self.batch_size, -1, -1, -1)
-        print("batch text-----------------------:", batch_text)
-        print("batch_vision-----------------------:", batch_vision)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         self.bottleneck.reset_alpha()
-    
+
         self.model.eval()
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
             print("train bottleneck for loop-------------------------------------")
-            # Call the forward method of the InformationBottleneck
-            bottleneck_output_text = self.bottleneck(batch_text)[0]
-        
-            print("bottleneck_output_text-------------------:",bottleneck_output_text)
-            bottleneck_output_vision = self.bottleneck(batch_vision)[0]
-            print("bottleneck_output_vision-------------------:",bottleneck_output_vision)
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=bottleneck_output_text, labels=bottleneck_output_vision)
+            text_repr = self.model.get_text_features(text_t)
+            image_repr = self.model.get_image_features(image_t)
+            print("training text ------------------", text_repr)
+            print("training image ------------------", image_repr)
+            cross_attended_text, cross_attended_image = self.cross_attention(image_repr, text_repr)
+
+            if mode == 'vision':
+                bottleneck_output = self.sequential(cross_attended_image, cross_attended_text, mode=mode)
+                labels = cross_attended_text
+            elif mode == 'text':
+                bottleneck_output = self.sequential(cross_attended_image, cross_attended_text, mode=mode)
+                labels = cross_attended_image
+            else:
+                raise ValueError("Invalid mode. Choose 'vision' or 'text'.")
+
+            loss_c, loss_f, loss_t = self.calc_loss(bottleneck_output, labels)
             loss_t.backward()
             optimizer.step(closure=None)
         print("loss_c-----------------------:",loss_c)
@@ -232,7 +237,6 @@ class IBAInterpreter:
         print("loss_t-----------------------:",loss_t)
         return loss_c, loss_f, loss_t
 
-        
         
     def calc_loss(self, outputs, labels):
         """ Calculate the combined loss expression for optimization of lambda """
