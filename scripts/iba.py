@@ -120,8 +120,12 @@ class InformationBottleneck(nn.Module):
         return self.alpha
 
     def forward(self, x, **kwargs):
+        print("forward shape[0]--------------------------:", x.shape[0])
+        print("forward shape[1]--------------------------:", x.shape[1])
         lamb = self.sigmoid(self.alpha)
+        print("lamb1----------------------------:", lamb)
         lamb = lamb.expand(x.shape[0], x.shape[1], -1)
+        print("lamb2----------------------------:", lamb)
         masked_mu = x * lamb
         masked_var = (1-lamb)**2
         self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
