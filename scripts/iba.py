@@ -120,12 +120,10 @@ class InformationBottleneck(nn.Module):
         return self.alpha
 
     def forward(self, x, **kwargs):
-        batch_size, seq_len, feature_dim = x.shape
         lamb = self.sigmoid(self.alpha)
-        lamb = lamb.expand(batch_size, seq_len, feature_dim)
-        print("IBAInterpreter lamb---------------------------", lamb)
+        lamb = lamb.expand(x.shape[0], x.shape[1], -1)
         masked_mu = x * lamb
-        masked_var = (1 - lamb) ** 2
+        masked_var = (1-lamb)**2
         self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
         t = self._sample_t(masked_mu, masked_var)
         return (t,)
