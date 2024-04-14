@@ -14,26 +14,27 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
 class mySequential(nn.Sequential):
-    def __init__(self, original_layer, bottleneck_layer, cross_attention_layer, dim_model=512):
+    def __init__(self, original_layer, bottleneck_layer, cross_attention_layer, mode='vision', dim_model=512):
         super().__init__()
         self.original_layer = original_layer
         self.cross_attention = cross_attention_layer
         self.bottleneck = bottleneck_layer
+        self.mode = mode
         self.dim_model = dim_model
 
-    def forward(self, input_vision, input_text, mode):
+    def forward(self, input_vision, input_text):
         vision_repr = self.original_layer(input_vision)
         text_repr = self.original_layer(input_text)
-        cross_attended_vision, cross_attended_text = self.cross_attention(vision_repr, text_repr, self.dim_model)
+        cross_attended_vision, cross_attended_text = self.cross_attention(vision_repr, text_repr)
 
-        if mode == 'vision':
-            bottleneck_output = self.bottleneck(cross_attended_vision)[0]
+        if self.mode == 'vision':
+            bottleneck_output = self.bottleneck(cross_attended_vision)
             return bottleneck_output
-        elif mode == 'text':
-            bottleneck_output = self.bottleneck(cross_attended_text)[0]
+        elif self.mode == 'text':
+            bottleneck_output = self.bottleneck(cross_attended_text)
             return bottleneck_output
         else:
-            raise ValueError("Invalid mode. Please choose either 'vision' or 'text'.")
+            raise ValueError("Invalid mode. Choose 'vision' or 'text'.")
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     """
