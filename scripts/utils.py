@@ -21,7 +21,7 @@ class mySequential(nn.Sequential):
         self.bottleneck = bottleneck_layer
         self.dim_model = dim_model
 
-    def forward(self, input_vision, input_text, mode='vision'):
+    def forward(self, input_vision, input_text, mode):
         vision_repr = self.original_layer(input_vision)
         text_repr = self.original_layer(input_text)
         cross_attended_vision, cross_attended_text = self.cross_attention(vision_repr, text_repr, self.dim_model)
