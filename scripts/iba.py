@@ -223,7 +223,7 @@ class IBAInterpreter:
             else:
                 raise ValueError("Invalid mode. Choose 'vision' or 'text'.")
 
-             loss_c, loss_f, loss_t = self.calc_loss(bottleneck_output, labels)
+            loss_c, loss_f, loss_t = self.calc_loss(bottleneck_output, labels)
             loss_t.backward()
             optimizer.step(closure=None)
         print("loss_c-----------------------:",loss_c)
