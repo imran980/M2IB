@@ -122,6 +122,9 @@ class InformationBottleneck(nn.Module):
     def forward(self, x, **kwargs):
         print("forward shape[0]--------------------------:", x.shape[0])
         print("forward shape[1]--------------------------:", x.shape[1])
+        print("Alpha Shape--------------:", self.alpha.shape)
+        print("Alpha Contents-----------------:", self.alpha.data)
+
         lamb = self.sigmoid(self.alpha)
         print("lamb1----------------------------:", lamb)
         lamb = lamb.expand(x.shape[0], x.shape[1], -1)
