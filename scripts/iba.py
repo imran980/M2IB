@@ -175,64 +175,39 @@ class IBAInterpreter:
         return normalize(saliency)
 
     def _run_text_training(self, text_t, image_t):
-        text_repr = self.model.get_text_features(text_t)
-        image_repr = self.model.get_image_features(image_t)
-        cross_attended_text, cross_attended_image = self.cross_attention(image_repr, text_repr)
-        text_sequential = mySequential(self.original_layer, self.bottleneck, self.cross_attention, mode='text')
-        replace_layer(self.model.text_model, self.original_layer, text_sequential)
-        #replace_layer(self.model.text_model, self.original_layer, self.sequential)
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_text, cross_attended_image)
-        replace_layer(self.model.text_model, text_sequential, self.original_layer)
-        #replace_layer(self.model.text_model, self.sequential, self.original_layer)
+        replace_layer(self.model.text_model, self.original_layer, self.sequential)
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
+        replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _run_vision_training(self, text_t, image_t):
         print("run_vision_training-----------------------:")
         print("text_t-----------------------:",text_t)
         print("image_t-----------------------:",image_t)
-        text_repr = self.model.get_text_features(text_t)
-        image_repr = self.model.get_image_features(image_t)
-        print("text_repr-----------------------:",text_repr)
-        print("image_repr-----------------------:",image_repr)
-        cross_attended_vision, cross_attended_image = self.cross_attention(image_repr, text_repr)
-        print("cross_attended_vision-----------------------:",cross_attended_vision)
-        print("cross_attended_image-----------------------:",cross_attended_image)
-        vision_sequential = mySequential(self.original_layer, self.bottleneck, self.cross_attention, mode='vision')
-        replace_layer(self.model.vision_model, self.original_layer, vision_sequential)
-        #replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_image, cross_attended_vision)
-        print("loss_c-----------------------:",loss_c)
-        print("loss_f-----------------------:",loss_f)
-        print("loss_t-----------------------:",loss_t)
-        replace_layer(self.model.vision_model, vision_sequential, self.original_layer)
-        #replace_layer(self.model.vision_model, self.sequential, self.original_layer)
+        replace_layer(self.model.vision_model, self.original_layer, self.sequential)
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
+        replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
-    def _train_bottleneck(self, cross_attended_vision, cross_attended_text, mode='vision'):
+    def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
         print("_train_bottleneck-------------------------------------------")
+        batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
+        # Reset from previous run or modifications
         self.bottleneck.reset_alpha()
-
+        # Train
         self.model.eval()
-        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
+        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck",
+                      disable=not self.progbar):
             optimizer.zero_grad()
-            print("train bottleneck for loop-------------------------------------")
-            bottleneck_output = self.sequential(cross_attended_vision, cross_attended_text, mode=mode)
-    
-            if mode == 'vision':
-                labels = cross_attended_text
-            elif mode == 'text':
-                labels = cross_attended_image
-            else:
-                raise ValueError("Invalid mode. Choose 'vision' or 'text'.")
-
-            loss_c, loss_f, loss_t = self.calc_loss(bottleneck_output, labels)
+            out = self.model.get_text_features(batch[0]), self.model.get_image_features(batch[1])
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=out[0], labels=out[1])
             loss_t.backward()
             optimizer.step(closure=None)
         print("loss_c-----------------------:",loss_c)
         print("loss_f-----------------------:",loss_f)
         print("loss_t-----------------------:",loss_t)
-        return loss_c, loss_f, loss_t
+        return loss_c, loss_f, loss_t 
         
 
     def calc_loss(self, outputs, labels):
