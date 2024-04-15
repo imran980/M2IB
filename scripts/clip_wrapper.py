@@ -117,14 +117,9 @@ class ClipWrapper(nn.Module):
         self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype).to(device)
         self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
         self.dtype = model.dtype
-        self.dim_model = model.text_projection.weight.shape[1]
 
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
-        print("x value -----------------:", x)
-        # Filter out the unexpected keyword arguments
-        kwargs = {k: v for k, v in {'output_hidden_states': output_hidden_states, 'emb_input': emb_input}.items() if k in self.vision_model.forward.__code__.co_varnames}
-        return self.vision_model(x, **kwargs)
+        return self.vision_model(x, output_hidden_states, emb_input)
 
     def get_text_features(self, x, output_hidden_states=False, emb_input=False):
-        print("x value -----------------:", x)
         return self.text_model(x, output_hidden_states, emb_input)
