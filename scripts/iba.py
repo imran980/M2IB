@@ -124,7 +124,7 @@ class InformationBottleneck(nn.Module):
         print("forward shape[1]--------------------------:", x.shape[1])
         print("Alpha Shape--------------:", self.alpha.shape)
         print("Alpha Contents-----------------:", self.alpha.data)
-
+        print("x shape--------------------------:", x.shape)
         lamb = self.sigmoid(self.alpha)
         print("lamb1----------------------------:", lamb)
         lamb = lamb.expand(x.shape[0], x.shape[1], -1)
