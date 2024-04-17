@@ -16,15 +16,19 @@ class CrossAttentionLayer(nn.Module):
         print("cross attention inputs---------------", inputs)
         batch_size, sequence_length, embedding_size = inputs.size()
         vision_repr = inputs[:, :, :embedding_size // 2]
+        print("cross attention vision_repr---------------", vision_repr)
         text_repr = inputs[:, :, embedding_size // 2:]
-
+        print("cross attention text_repr---------------", text_repr)
         query = self.query(vision_repr)
+        print("cross attention query---------------", query)
         key = self.key(text_repr)
+        print("cross attention key---------------", key)
         attention_scores = torch.matmul(query, key.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.dim_model, dtype=torch.float))
-        
+        print("cross attention attention_scores---------------", attention_scores)
         attention_weights = self.softmax(attention_scores)
-        
+        print("cross attention attention_weights---------------", attention_weights)
         value = self.value(text_repr)
+        print("cross attention inputs---------------", value)
         cross_attended_vision = torch.matmul(attention_weights, value)
         cross_attended_text = torch.matmul(attention_weights.transpose(-2, -1), vision_repr)
         
