@@ -200,7 +200,7 @@ class IBAInterpreter:
             loss_c, loss_f, loss_t = self.calc_loss(outputs, labels)
             loss_t.backward()
             optimizer.step(closure=None)
-        return loss_c, loss_f, loss_t 
+        return loss_c, loss_f, loss_t
         
 
     def calc_loss(self, outputs, labels):
