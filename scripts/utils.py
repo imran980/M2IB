@@ -22,12 +22,14 @@ class mySequential(nn.Sequential):
         self.mode = mode
         self.dim_model = dim_model
 
-    def forward(self, input_vision, input_text, mode='vision'):
-        if mode == 'vision':
-            bottleneck_output = self.bottleneck(input_vision)
+    def forward(self, input_vision, input_text, **kwargs):
+        if self.mode == 'vision':
+            original_output = self.original_layer(input_vision, **kwargs)
+            bottleneck_output = self.bottleneck(original_output)
             return bottleneck_output
-        elif mode == 'text':
-            bottleneck_output = self.bottleneck(input_text)
+        elif self.mode == 'text':
+            original_output = self.original_layer(input_text, **kwargs)
+            bottleneck_output = self.bottleneck(original_output)
             return bottleneck_output
         else:
             raise ValueError("Invalid mode. Choose 'vision' or 'text'.")
@@ -42,10 +44,9 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
             if submodule == target:
                 if isinstance(model, nn.ModuleList):
                     model[int(name)] = replacement
-                elif isinstance(model, nn.Sequential):
+                elif isinstance(model, nn.Sequential) or isinstance(model, mySequential):
                     model[int(name)] = replacement
                 else:
-                    print(3, replacement)
                     model.__setattr__(name, replacement)
                 return True
             elif len(list(submodule.named_children())) > 0:
