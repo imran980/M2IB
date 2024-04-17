@@ -10,7 +10,9 @@ class CrossAttentionLayer(nn.Module):
         self.value = nn.Linear(dim_model, dim_model)
         self.softmax = nn.Softmax(dim=-1)
 
-    def forward(self, vision_repr, text_repr):
+    def forward(self, inputs):
+        vision_repr, text_repr = inputs
+        # ... (the rest of your code for the CrossAttentionLayer)
         # Calculate attention scores
         print("vision repr crossattentionlayer------------------:", vision_repr)
         print("text repr crossattentionlayer------------------:", text_repr)
