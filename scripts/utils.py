@@ -14,13 +14,12 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
 class mySequential(nn.Sequential):
-    def forward(self, *input, **kwargs):
+    def forward(self, inputs, output_attentions=None, output_hidden_states=None, **kwargs):
+        text_features, image_features = inputs
         for module in self._modules.values():
-            if type(input) == tuple:
-                input = module(*input)
-            else:
-                input = module(input)
-        return input
+            text_features, image_features = module((text_features, image_features), **kwargs)
+        return self.bottleneck(text_features, image_features)
+        
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     """
