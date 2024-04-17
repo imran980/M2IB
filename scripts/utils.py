@@ -14,7 +14,7 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
 class mySequential(nn.Sequential):
-    def forward(self, inputs, output_attentions=None, output_hidden_states=None, **kwargs):
+    def forward(self, inputs, output_hidden_states=None, **kwargs):
         text_features, image_features = inputs
         for module in self._modules.values():
             text_features, image_features = module((text_features, image_features), **kwargs)
