@@ -14,12 +14,12 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
 class mySequential(nn.Sequential):
-    def forward(self, _input, *kwargs):
+    def forward(self, _input, **kwargs):
         for module in self._modules.values():
             if isinstance(_input, tuple):
-                _input = module(*_input, *kwargs)
+                _input = module(*_input, **kwargs)
             else:
-                _input = module(_input, *kwargs)
+                _input = module(_input, **kwargs)
         return _input
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
