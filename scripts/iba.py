@@ -174,33 +174,26 @@ class IBAInterpreter:
         saliency = saliency.squeeze().cpu().detach().numpy()
         return normalize(saliency)
 
-    def _run_text_training(self, text_t, image_t):
-        replace_layer(self.model.text_model, self.original_layer, self.sequential)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
-        replace_layer(self.model.text_model, self.sequential, self.original_layer)
-        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-
-    def _run_vision_training(self, text_t, image_t):
-        print("run_vision_training-----------------------:")
-        print("text_t-----------------------:",text_t)
-        print("image_t-----------------------:",image_t)
+    def _run_vision_training(self, text_t, image_t, output_attentions=None, output_hidden_states=None):
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t, output_attentions=output_attentions, output_hidden_states=output_hidden_states)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
-    def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
-        print("_train_bottleneck-------------------------------------------")
+    def _run_text_training(self, text_t, image_t, output_attentions=None, output_hidden_states=None):
+        replace_layer(self.model.text_model, self.original_layer, self.sequential)
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t, output_attentions=output_attentions, output_hidden_states=output_hidden_states)
+        replace_layer(self.model.text_model, self.sequential, self.original_layer)
+        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
+
+    def _train_bottleneck(self, text_t, image_t, output_attentions=None, output_hidden_states=None):
         batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
-        # Reset from previous run or modifications
         self.bottleneck.reset_alpha()
-        # Train
         self.model.eval()
-        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck",
-                      disable=not self.progbar):
+        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
-            out = self.model.get_text_features(batch[0]), self.model.get_image_features(batch[1])
+            out = self.model.get_text_features(batch[0], output_attentions=output_attentions, output_hidden_states=output_hidden_states), self.model.get_image_features(batch[1], output_attentions=output_attentions, output_hidden_states=output_hidden_states)
             loss_c, loss_f, loss_t = self.calc_loss(outputs=out[0], labels=out[1])
             loss_t.backward()
             optimizer.step(closure=None)
