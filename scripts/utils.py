@@ -14,25 +14,13 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
 class mySequential(nn.Sequential):
-    def __init__(self, original_layer, bottleneck_layer, cross_attention_layer, mode='vision', dim_model=512):
-        super().__init__()
-        self.original_layer = original_layer
-        self.cross_attention = cross_attention_layer
-        self.bottleneck = bottleneck_layer
-        self.mode = mode
-        self.dim_model = dim_model
-
-    def forward(self, input_vision, input_text, **kwargs):
-        if self.mode == 'vision':
-            original_output = self.original_layer(input_vision, **kwargs)
-            bottleneck_output = self.bottleneck(original_output)
-            return bottleneck_output
-        elif self.mode == 'text':
-            original_output = self.original_layer(input_text, **kwargs)
-            bottleneck_output = self.bottleneck(original_output)
-            return bottleneck_output
-        else:
-            raise ValueError("Invalid mode. Choose 'vision' or 'text'.")
+    def forward(self, _input, *kwargs):
+        for module in self._modules.values():
+            if isinstance(_input, tuple):
+                _input = module(*_input, *kwargs)
+            else:
+                _input = module(_input, *kwargs)
+        return _input
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     """
