@@ -15,14 +15,21 @@ def normalize(x):
 
 class mySequential(nn.Sequential):
     def forward(self, *input, **kwargs):
-        print("MySequential: Receiving input:", input)
+        if isinstance(input, tuple):
+            print("MySequential: Receiving input shape:", input[0].shape)
+        else:
+            print("MySequential: Receiving input shape:", input[0].shape)
         for module in self._modules.values():
-            if type(input) == tuple:
+            if isinstance(input, tuple):
                 input = module(*input)
             else:
                 input = module(input)
-        print("MySequential: Returning input:", input)
+        if isinstance(input, tuple):
+            print("MySequential: Returning input shape:", input[0].shape)
+        else:
+            print("MySequential: Returning input shape:", input.shape)
         return input
+
 
         
 
