@@ -15,7 +15,7 @@ def normalize(x):
 
 class mySequential(nn.Sequential):
     def forward(self, *input, **kwargs):
-        print("MySequencial--------------------", input.shape)
+        print("MySequencial--------------------")
         for module in self._modules.values():
             if type(input) == tuple:
                 input = module(*input)
