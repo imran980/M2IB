@@ -211,6 +211,8 @@ class IBAInterpreter:
         self.model.eval()
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
+            print("_train_bottleneck batch[0]------------------------:", batch[0])
+            print("_train_bottleneck batch[1]------------------------:", batch[1])
             out =  self.model.get_text_features(batch[0]) 
             labl = self.model.get_image_features(batch[1])
             print("_train_bottleneck image_t------------------------:", out.shape)
