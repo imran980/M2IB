@@ -30,7 +30,7 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     Useful for injecting new layers in an existing model.
     """
     def replace_in(model: nn.Module, target: nn.Module, replacement: nn.Module):
-        print("replace_layer--------------------", model.shape)
+        print("replace_layer--------------------")
         for name, submodule in model.named_children():
             if submodule == target:
                 if isinstance(model, nn.ModuleList):
