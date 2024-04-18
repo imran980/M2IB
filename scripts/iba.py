@@ -174,14 +174,32 @@ class IBAInterpreter:
         saliency = saliency.squeeze().cpu().detach().numpy()
         return normalize(saliency)
 
+    def vision_heatmap(self, text_t, image_t):
+        print("vision_heatmap text_t------------------------:", text_t)
+        print("vision_heatmap image_t------------------------:", image_t)
+        print("vision_heatmap text_t------------------------:", text_t.shape)
+        print("vision_heatmap image_t------------------------:", image_t.shape)
+        saliency, loss_c, loss_f, loss_t = self._run_vision_training(text_t, image_t)
+        print("vision_heatmap vision training--------------------", saliency, loss_c, loss_f, loss_t)
+        saliency = torch.nansum(saliency, -1)[1:]  # Discard the first because it's the CLS token
+        dim = int(saliency.numel() ** 0.5)
+        saliency = saliency.reshape(1, 1, dim, dim)
+        saliency = torch.nn.functional.interpolate(saliency, size=224, mode='bilinear')
+        saliency = saliency.squeeze().cpu().detach().numpy()
+        return normalize(saliency)
+
     def _run_vision_training(self, text_t, image_t, **kwargs):
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
+        print("_run_vision_training image_t------------------------:", image_t.shape)
+        print("_run_vision_training image_t------------------------:", image_t.shape)
         loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t, **kwargs)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _run_text_training(self, text_t, image_t, **kwargs):
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
+        print("_run_vision_training image_t------------------------:", image_t.shape)
+        print("_run_vision_training image_t------------------------:", image_t.shape)
         loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t, **kwargs)
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
@@ -195,7 +213,9 @@ class IBAInterpreter:
             optimizer.zero_grad()
             out =  self.model.get_text_features(batch[0]) 
             labl = self.model.get_image_features(batch[1])
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=out, labels=out)
+            print("_train_bottleneck image_t------------------------:", out.shape)
+            print("_train_bottleneck image_t------------------------:", labl.shape)
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=out, labels=labl)
             loss_t.backward()
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t
