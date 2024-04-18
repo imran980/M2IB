@@ -131,8 +131,12 @@ class InformationBottleneck(nn.Module):
         print("lamb2----------------------------:", lamb)
         masked_mu = x * lamb
         masked_var = (1-lamb)**2
+        print("forward masked_mu--------------------------:", masked_mu)
+        print("forward masked_var-----------------------:", masked_var)
         self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
         t = self._sample_t(masked_mu, masked_var)
+        print("forward t--------------------------:", t)
+        
         return (t,)
 
 
