@@ -214,7 +214,7 @@ class IBAInterpreter:
             print("_train_bottleneck batch[0]------------------------:", batch[0])
             print("_train_bottleneck batch[1]------------------------:", batch[1])
             out =  self.model.get_text_features(batch[0]) 
-            print("_train_bottleneck image_t------------------------:", out.shape)
+            print("_train_bottleneck text_t------------------------:", out.shape)
             labl = self.model.get_image_features(batch[1])
             print("_train_bottleneck image_t------------------------:", labl.shape)
             loss_c, loss_f, loss_t = self.calc_loss(outputs=out, labels=labl)
