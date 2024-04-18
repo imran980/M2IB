@@ -15,13 +15,15 @@ def normalize(x):
 
 class mySequential(nn.Sequential):
     def forward(self, *input, **kwargs):
-        print("MySequencial--------------------")
+        print("MySequential: Receiving input:", input)
         for module in self._modules.values():
             if type(input) == tuple:
                 input = module(*input)
             else:
                 input = module(input)
+        print("MySequential: Returning input:", input)
         return input
+
         
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
