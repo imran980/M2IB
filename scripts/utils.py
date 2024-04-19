@@ -14,24 +14,25 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
 class mySequential(nn.Sequential):
-    def forward(self, *input, **kwargs):
-        if isinstance(input, tuple):
-            print("MySequential: Receiving input shape:", input[0].shape)
+    def forward(self, inputs, other_repr, **kwargs):
+        if isinstance(inputs, tuple):
+            print("MySequential: Receiving input shape:", inputs[0].shape)
         else:
-            print("MySequential: Receiving input shape:", input[0].shape)
+            print("MySequential: Receiving input shape:", inputs.shape)
+
         for module in self._modules.values():
-            if isinstance(input, tuple):
-                input = module(*input)
+            if isinstance(module, CrossAttentionLayer):
+                inputs = module(inputs, other_repr)
             else:
-                input = module(input)
-        if isinstance(input, tuple):
-            print("MySequential: Returning input shape:", input[0].shape)
+                inputs = module(inputs)
+
+        if isinstance(inputs, tuple):
+            print("MySequential: Returning input shape:", inputs[0].shape)
         else:
-            print("MySequential: Returning input shape:", input.shape)
-        return input
+            print("MySequential: Returning input shape:", inputs.shape)
 
+        return inputs
 
-        
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     """
