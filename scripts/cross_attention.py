@@ -16,9 +16,9 @@ class CrossAttentionLayer(nn.Module):
         print("cross attention inputs---------------", inputs)
         batch_size, sequence_length, embedding_size = inputs.size()
         vision_repr = inputs[:, :, :embedding_size // 2]
-        print("cross attention vision_repr---------------", vision_repr)
+        print("cross attention vision_repr shape---------------", vision_repr.shape)
         text_repr = inputs[:, :, embedding_size // 2:]
-        print("cross attention text_repr---------------", text_repr)
+        print("cross attention text_repr shape---------------", text_repr.shape)
         query = self.query(vision_repr)
         print("cross attention query---------------", query)
         key = self.key(text_repr)
