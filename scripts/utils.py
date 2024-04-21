@@ -18,8 +18,10 @@ class mySequential(nn.Sequential):
     def forward(self, inputs, other_repr=None, **kwargs):
         if isinstance(inputs, tuple):
             print("MySequential: Receiving input shape:", inputs[0].shape)
+            print("MySequential datatype------------------------:", inputs[0].dtype)
         else:
             print("MySequential: Receiving input shape:", inputs.shape)
+            print("MySequential datatype------------------------:", inputs.dtype)
 
         for module in self._modules.values():
             if isinstance(module, CrossAttentionLayer):
@@ -34,8 +36,10 @@ class mySequential(nn.Sequential):
 
         if isinstance(inputs, tuple):
             print("MySequential: Returning input shape:", inputs[0].shape)
+            print("MySequential: datatype:", inputs[0].dtype)
         else:
             print("MySequential: Returning input shape:", inputs.shape)
+            print("MySequential: datatype:", inputs[0].dtype)
 
         return inputs
 
@@ -60,6 +64,7 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
         if hasattr(self, 'module') and isinstance(self.module, mySequential):
             # Extract the first argument from *args (inputs)
             inputs = args[0] if args else None
+             print("MySequential forwardpass: datatype:", inputs.dtype)
             # Extract the second argument from *args (other_repr)
             other_repr = args[1] if len(args) > 1 else None
             # Pass the remaining arguments as keyword arguments
