@@ -196,14 +196,6 @@ class IBAInterpreter:
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
         print("_run_vision_training image_t------------------------:", image_t.shape)
         print("_run_vision_training image_t------------------------:", image_t.shape)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t, **kwargs)
-        replace_layer(self.model.vision_model, self.sequential, self.original_layer)
-        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-
-    def _run_vision_training(self, text_t, image_t, **kwargs):
-        replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-        print("_run_vision_training image_t------------------------:", image_t.shape)
-        print("_run_vision_training image_t------------------------:", image_t.shape)
         text_repr = self.model.get_text_features(text_t)
         image_repr = self.model.get_image_features(image_t)
         print("_run_vision_training text_repr------------------------:", text_repr.shape)
