@@ -200,16 +200,37 @@ class IBAInterpreter:
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
+    def _run_vision_training(self, text_t, image_t, **kwargs):
+        replace_layer(self.model.vision_model, self.original_layer, self.sequential)
+        print("_run_vision_training image_t------------------------:", image_t.shape)
+        print("_run_vision_training image_t------------------------:", image_t.shape)
+        text_repr = self.model.get_text_features(text_t)
+        image_repr = self.model.get_image_features(image_t)
+        print("_run_vision_training text_repr------------------------:", text_repr.shape)
+        print("_run_vision_training image_repr------------------------:", text_repr.shape)
+        _, attended_image = self.cross_attention(image_repr, text_repr)
+        print("_run_vision_training attended_image------------------------:", attended_image.shape)
+        loss_c, loss_f, loss_t = self._train_bottleneck(attended_image, **kwargs)
+        replace_layer(self.model.vision_model, self.sequential, self.original_layer)
+        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
+    
     def _run_text_training(self, text_t, image_t, **kwargs):
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
-        print("_run_vision_training image_t------------------------:", image_t.shape)
-        print("_run_vision_training image_t------------------------:", image_t.shape)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t, **kwargs)
+        text_repr = self.model.get_text_features(text_t)
+        image_repr = self.model.get_image_features(image_t)
+        print("_run_text_training image_t------------------------:", image_t.shape)
+        print("_run_text_training image_t------------------------:", image_t.shape)
+        print("_run_text_training text_repr------------------------:", text_repr.shape)
+        print("_run_text_training image_repr------------------------:", text_repr.shape)
+        attended_text, _ = self.cross_attention(text_repr, image_repr)
+        print("_run_text_training attended_text------------------------:", attended_text.shape)
+        loss_c, loss_f, loss_t = self._train_bottleneck(attended_text, **kwargs)
+        print("_run_text_training done")
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-
-    def _train_bottleneck(self, text_t, image_t, **kwargs):
-        batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
+        
+    def _train_bottleneck(self, attended_repr, **kwargs):
+        batch = attended_repr.expand(self.batch_size, *attended_repr.shape[1:])
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         self.bottleneck.reset_alpha()
         self.model.eval()
@@ -217,15 +238,14 @@ class IBAInterpreter:
             optimizer.zero_grad()
             print("_train_bottleneck batch[0]------------------------:", batch[0])
             print("_train_bottleneck batch[1]------------------------:", batch[1])
-            out =  self.model.get_text_features(batch[0]) 
+            out = self.bottleneck(batch)
             print("_train_bottleneck text_t------------------------:", out.shape)
-            labl = self.model.get_image_features(batch[1])
-            print("_train_bottleneck image_t------------------------:", labl.shape)
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=out, labels=labl)
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=out, labels=batch)
             loss_t.backward()
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t
-        
+    
+       
 
     def calc_loss(self, outputs, labels):
         """ Calculate the combined loss expression for optimization of lambda """
