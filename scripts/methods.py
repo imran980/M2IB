@@ -2,8 +2,9 @@
 Based on code of https://github.com/bazingagin/IBA, https://github.com/BioroboticsLab/IBA
 """
 
-from scripts.iba import IBAInterpreter, Estimator
+
 import numpy as np
+from scripts.iba import IBAInterpreter, Estimator
 import clip
 import copy
 import torch 
