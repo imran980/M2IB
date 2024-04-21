@@ -56,13 +56,13 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
                     return True
         return False
 
-    def forward_wrapper(self, x):
+    def forward_wrapper(self, *args, **kwargs):
         if isinstance(self.module, mySequential):
             # Call the forward method of mySequential with the correct arguments
-            return self.module(x, None)
+            return self.module(*args, **kwargs)
         else:
             # Call the original forward method
-            return self.module(x)
+            return self.module(*args, **kwargs)
 
     if not replace_in(model, target, replacement):
         raise RuntimeError("Cannot substitute layer: Layer of type " + target.__class__.__name__ + " is not a child of given parent of type " + model.__class__.__name__)
