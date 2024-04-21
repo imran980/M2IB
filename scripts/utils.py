@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scripts.cross_attention import CrossAttentionLayer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+import types
 
 def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
