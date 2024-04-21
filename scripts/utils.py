@@ -63,7 +63,7 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
             # Extract the second argument from *args (other_repr)
             other_repr = args[1] if len(args) > 1 else None
             # Call the forward method of mySequential with the correct arguments
-            return self.module(inputs, other_repr=other_repr, **kwargs)
+            return self.module(inputs, other_repr=None, **kwargs)
         else:
             # Call the original forward method of the wrapped module
             return self._original_forward(*args, **kwargs)
