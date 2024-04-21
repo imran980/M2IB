@@ -195,7 +195,9 @@ class IBAInterpreter:
     def _run_vision_training(self, text_t, image_t, **kwargs):
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
         print("_run_vision_training text_t------------------------:", text_t.shape)
+        print("run_vision_training text_t.datatype------------------------:", text_t.dtype)
         print("_run_vision_training image_t------------------------:", image_t.shape)
+        print("run_vision_training image_t.datatype------------------------:", image_t.dtype)
         text_repr = self.model.get_text_features(text_t)
         print("_run_vision_training text_repr------------------------:", text_repr.shape)
         image_features = self.model.get_image_features(image_t)
