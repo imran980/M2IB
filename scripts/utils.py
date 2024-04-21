@@ -40,12 +40,7 @@ class mySequential(nn.Sequential):
 
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
-    """
-    Replace a given module within a parent module with some third module
-    Useful for injecting new layers in an existing model.
-    """
     def replace_in(model: nn.Module, target: nn.Module, replacement: nn.Module):
-        print("replace_layer--------------------")
         for name, submodule in model.named_children():
             if submodule == target:
                 if isinstance(model, nn.ModuleList):
@@ -53,16 +48,27 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
                 elif isinstance(model, nn.Sequential) or isinstance(model, mySequential):
                     model[int(name)] = replacement
                 else:
-                    model.__setattr__(name, replacement)
+                    setattr(model, name, replacement)
                 return True
             elif len(list(submodule.named_children())) > 0:
                 if replace_in(submodule, target, replacement):
                     return True
         return False
 
+    def forward_wrapper(self, x):
+        if isinstance(self.module, mySequential):
+            # Call the forward method of mySequential with the correct arguments
+            return self.module(x, None)
+        else:
+            # Call the original forward method
+            return self.module(x)
+
     if not replace_in(model, target, replacement):
         raise RuntimeError("Cannot substitute layer: Layer of type " + target.__class__.__name__ + " is not a child of given parent of type " + model.__class__.__name__)
 
+    # Wrap the forward method of the parent module
+    setattr(model, 'forward', types.MethodType(forward_wrapper, model))
+    
 
 class CosSimilarity:
     """ Target function """
