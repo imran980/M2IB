@@ -72,7 +72,7 @@ class TextEmbeddings(nn.Module):
         self.dtype = dtype
 
     def forward(self, text):
-        print("clip wrapper textembeddings--------------------:", text.shape:
+        print("clip wrapper textembeddings--------------------:", text.shape):
         x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
         x = x + self.positional_embedding.type(self.dtype)[:x.shape[1], :]#(1,50,512)
         return x
