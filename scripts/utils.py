@@ -64,7 +64,7 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
         if hasattr(self, 'module') and isinstance(self.module, mySequential):
             # Extract the first argument from *args (inputs)
             inputs = args[0] if args else None
-             print("MySequential forwardpass: datatype:", inputs.dtype)
+            print("MySequential forwardpass: datatype:", inputs.dtype)
             # Extract the second argument from *args (other_repr)
             other_repr = args[1] if len(args) > 1 else None
             # Pass the remaining arguments as keyword arguments
