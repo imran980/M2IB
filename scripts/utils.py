@@ -14,7 +14,7 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
 class mySequential(nn.Sequential):
-    def forward(self, inputs, other_repr, **kwargs):
+    def forward(self, inputs, other_repr=None, **kwargs):
         if isinstance(inputs, tuple):
             print("MySequential: Receiving input shape:", inputs[0].shape)
         else:
@@ -22,9 +22,14 @@ class mySequential(nn.Sequential):
 
         for module in self._modules.values():
             if isinstance(module, CrossAttentionLayer):
-                inputs = module(inputs, other_repr)
+                if other_repr is None:
+                    raise ValueError("Cross-attention layer requires 'other_repr' input.")
+                inputs, other_repr = module(inputs, other_repr)
             else:
-                inputs = module(inputs)
+                if isinstance(inputs, tuple):
+                    inputs = module(*inputs)
+                else:
+                    inputs = module(inputs)
 
         if isinstance(inputs, tuple):
             print("MySequential: Returning input shape:", inputs[0].shape)
