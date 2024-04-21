@@ -213,7 +213,7 @@ class IBAInterpreter:
         text_repr = self.model.get_image_features(image_t)
         print("_run_text_training text_repr------------------------:", text_repr.shape)
        # _, attended_text = self.sequential(self.model.get_text_features(text_t), other_repr=text_repr)
-        _, attended_image = self.sequential((self.model.get_text_features(text_t), text_repr))
+        _, attended_text = self.sequential((self.model.get_text_features(text_t), text_repr))
         print("_run_text_training attended_text------------------------:", attended_text.shape)
         loss_c, loss_f, loss_t = self._train_bottleneck(attended_text, **kwargs)
         print("_run_text_training done")
