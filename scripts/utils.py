@@ -71,6 +71,9 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
             kwargs = dict(kwargs, **{f"arg_{i}": arg for i, arg in enumerate(args[2:])})
             # Call the forward method of mySequential with the correct arguments
             return self.module(inputs, other_repr=other_repr, **kwargs)
+        elif isinstance(self, (CLIPVisionTransformer, CLIPTextTransformer)):
+            # Call the original forward method for CLIPVisionTransformer and CLIPTextTransformer
+            return self._original_forward(*args, **kwargs)
         else:
             # Call the original forward method of the wrapped module
             return self._original_forward(*args, **kwargs)
