@@ -65,26 +65,19 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
             # Extract the first argument from *args (inputs)
             inputs = args[0] if args else None
 
-            # Check if the second argument is provided
             if len(args) > 1:
-                # If the second argument is provided, assume it's the other_repr
                 other_repr = args[1]
             else:
-                # If the second argument is not provided, check if other_repr is passed as a keyword argument
                 other_repr = kwargs.pop('other_repr', None)
 
-            # Call the forward method of mySequential with the correct arguments
             return self.module(inputs, other_repr=other_repr, **kwargs)
         else:
-            # Call the original forward method of the wrapped module
             return self._original_forward(*args, **kwargs)
 
     if not replace_in(model, target, replacement):
         raise RuntimeError("Cannot substitute layer: Layer of type " + target.__class__.__name__ + " is not a child of given parent of type " + model.__class__.__name__)
 
-    # Store the original forward method
     setattr(model, '_original_forward', model.forward)
-    # Wrap the forward method of the parent module
     setattr(model, 'forward', types.MethodType(forward_wrapper, model))
     
 
