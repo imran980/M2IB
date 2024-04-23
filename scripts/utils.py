@@ -63,18 +63,14 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
 
     def forward_wrapper(self, *args, **kwargs):
         if hasattr(self, 'module') and isinstance(self.module, mySequential):
-            # Extract the first argument from *args (inputs)
-            inputs = args[0] if args else None
-            print("MySequential forwardpass: datatype:", inputs.dtype)
-            # Extract the second argument from *args (other_repr)
-            other_repr = args[1] if len(args) > 1 else None
-            # Pass the remaining arguments as keyword arguments
-            kwargs = dict(kwargs, **{f"arg_{i}": arg for i, arg in enumerate(args[2:])})
+            # Extract the first argument from *args (pixel_values)
+            pixel_values = args[0] if args else None
+            # Extract other arguments from **kwargs
+            output_attentions = kwargs.get('output_attentions', None)
+            output_hidden_states = kwargs.get('output_hidden_states', None)
+            return_dict = kwargs.get('return_dict', None)
             # Call the forward method of mySequential with the correct arguments
-            return self.module(inputs, other_repr=other_repr, **kwargs)
-        elif isinstance(self, (CLIPVisionTransformer, CLIPTextTransformer)):
-            # Call the original forward method for CLIPVisionTransformer and CLIPTextTransformer
-            return self._original_forward(*args, **kwargs)
+            return self.module(pixel_values, output_attentions=output_attentions, output_hidden_states=output_hidden_states, return_dict=return_dict)
         else:
             # Call the original forward method of the wrapped module
             return self._original_forward(*args, **kwargs)
