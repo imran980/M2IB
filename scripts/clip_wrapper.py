@@ -119,8 +119,10 @@ class ClipWrapper(nn.Module):
         self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
         self.dtype = model.dtype
 
+   # def get_image_features(self, x, output_hidden_states=False, emb_input=False):
+   #     return self.vision_model(x, output_hidden_states, emb_input)
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
-        return self.vision_model(x, output_hidden_states, emb_input)
+        return self.vision_model(x, output_hidden_states=output_hidden_states, emb_input=emb_input)
 
     def get_text_features(self, x, output_hidden_states=False, emb_input=False):
         return self.text_model(x, output_hidden_states, emb_input)
