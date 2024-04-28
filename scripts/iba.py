@@ -201,6 +201,7 @@ class IBAInterpreter:
         text_repr = self.model.get_text_features(text_t)
         #print("_run_vision_training text_repr------------------------:", text_repr.shape)
         print("calling get_image_feature------------------------:")
+        print("model is of type-------------------:", type(self.model))
         image_features = self.model.get_image_features(image_t)
         print("_run_vision_training image_features------------------------:", image_features.shape)
         #_, attended_image = self.sequential(image_features, other_repr=text_repr)
