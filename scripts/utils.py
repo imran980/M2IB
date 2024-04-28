@@ -62,17 +62,16 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
         return False
 
     def forward_wrapper(self, *args, **kwargs):
-        print("calling forward_wrapper replace_layer--------------------------")
         if hasattr(self, 'module') and isinstance(self.module, mySequential):
             # Extract the first argument from *args (inputs)
             inputs = args[0] if args else None
-
+    
             if len(args) > 1:
                 other_repr = args[1]
             else:
                 other_repr = kwargs.pop('other_repr', None)
-
-            return self.module(inputs, other_repr=other_repr, **kwargs)
+    
+            return self.module(inputs, other_repr)  # Pass inputs and other_repr as positional arguments
         else:
             return self._original_forward(*args, **kwargs)
 
