@@ -65,13 +65,13 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
         if hasattr(self, 'module') and isinstance(self.module, mySequential):
             # Extract the first argument from *args (inputs)
             inputs = args[0] if args else None
-    
-            if len(args) > 1:
-                other_repr = args[1]
-            else:
-                other_repr = kwargs.pop('other_repr', None)
-    
-            return self.module(inputs, other_repr)  # Pass inputs and other_repr as positional arguments
+            other_args = args[1:]  # Collect the remaining positional arguments
+
+            other_repr = kwargs.pop('other_repr', None)
+
+            # Call mySequential.forward with inputs and other_repr as positional arguments
+            # and pass the remaining arguments as keyword arguments
+            return self.module(inputs, other_repr, **{**dict(zip(['arg{}'.format(i) for i in range(len(other_args))], other_args)), **kwargs})
         else:
             return self._original_forward(*args, **kwargs)
 
