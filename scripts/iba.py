@@ -120,22 +120,22 @@ class InformationBottleneck(nn.Module):
         return self.alpha
 
     def forward(self, x, **kwargs):
-        print("forward shape[0]--------------------------:", x.shape[0])
-        print("forward shape[1]--------------------------:", x.shape[1])
-        print("Alpha Shape--------------:", self.alpha.shape)
-        print("Alpha Contents-----------------:", self.alpha.data)
-        print("x shape--------------------------:", x.shape)
+        #print("forward shape[0]--------------------------:", x.shape[0])
+        #print("forward shape[1]--------------------------:", x.shape[1])
+        #print("Alpha Shape--------------:", self.alpha.shape)
+        #print("Alpha Contents-----------------:", self.alpha.data)
+        #print("x shape--------------------------:", x.shape)
         lamb = self.sigmoid(self.alpha)
-        print("lamb1----------------------------:", lamb)
+        #print("lamb1----------------------------:", lamb)
         lamb = lamb.expand(x.shape[0], x.shape[1], -1)
-        print("lamb2----------------------------:", lamb)
+        #print("lamb2----------------------------:", lamb)
         masked_mu = x * lamb
         masked_var = (1-lamb)**2
-        print("forward masked_mu--------------------------:", masked_mu)
-        print("forward masked_var-----------------------:", masked_var)
+        #print("forward masked_mu--------------------------:", masked_mu)
+        #print("forward masked_var-----------------------:", masked_var)
         self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
         t = self._sample_t(masked_mu, masked_var)
-        print("forward t--------------------------:", t)
+        #print("forward t--------------------------:", t)
         
         return (t,)
 
@@ -165,12 +165,12 @@ class IBAInterpreter:
         return normalize(saliency)
 
     def vision_heatmap(self, text_t, image_t):
-        print("vision_heatmap text_t------------------------:", text_t)
-        print("vision_heatmap image_t------------------------:", image_t)
-        print("vision_heatmap text_t------------------------:", text_t.shape)
-        print("vision_heatmap image_t------------------------:", image_t.shape)
+        #print("vision_heatmap text_t------------------------:", text_t)
+        #print("vision_heatmap image_t------------------------:", image_t)
+        #print("vision_heatmap text_t------------------------:", text_t.shape)
+        #print("vision_heatmap image_t------------------------:", image_t.shape)
         saliency, loss_c, loss_f, loss_t = self._run_vision_training(text_t, image_t)
-        print("vision_heatmap vision training--------------------", saliency, loss_c, loss_f, loss_t)
+        #print("vision_heatmap vision training--------------------", saliency, loss_c, loss_f, loss_t)
         saliency = torch.nansum(saliency, -1)[1:]  # Discard the first because it's the CLS token
         dim = int(saliency.numel() ** 0.5)
         saliency = saliency.reshape(1, 1, dim, dim)
@@ -179,12 +179,12 @@ class IBAInterpreter:
         return normalize(saliency)
 
     def vision_heatmap(self, text_t, image_t):
-        print("vision_heatmap text_t------------------------:", text_t)
-        print("vision_heatmap image_t------------------------:", image_t)
-        print("vision_heatmap text_t------------------------:", text_t.shape)
-        print("vision_heatmap image_t------------------------:", image_t.shape)
+        #print("vision_heatmap text_t------------------------:", text_t)
+        #print("vision_heatmap image_t------------------------:", image_t)
+        #print("vision_heatmap text_t------------------------:", text_t.shape)
+        #print("vision_heatmap image_t------------------------:", image_t.shape)
         saliency, loss_c, loss_f, loss_t = self._run_vision_training(text_t, image_t)
-        print("vision_heatmap vision training--------------------", saliency, loss_c, loss_f, loss_t)
+        #print("vision_heatmap vision training--------------------", saliency, loss_c, loss_f, loss_t)
         saliency = torch.nansum(saliency, -1)[1:]  # Discard the first because it's the CLS token
         dim = int(saliency.numel() ** 0.5)
         saliency = saliency.reshape(1, 1, dim, dim)
@@ -194,12 +194,13 @@ class IBAInterpreter:
 
     def _run_vision_training(self, text_t, image_t, **kwargs):
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-        print("_run_vision_training text_t------------------------:", text_t.shape)
-        print("run_vision_training text_t.datatype------------------------:", text_t.dtype)
-        print("_run_vision_training image_t------------------------:", image_t.shape)
-        print("run_vision_training image_t.datatype------------------------:", image_t.dtype)
+        #print("_run_vision_training text_t------------------------:", text_t.shape)
+        #print("run_vision_training text_t.datatype------------------------:", text_t.dtype)
+        #print("_run_vision_training image_t------------------------:", image_t.shape)
+        #print("run_vision_training image_t.datatype------------------------:", image_t.dtype)
         text_repr = self.model.get_text_features(text_t)
-        print("_run_vision_training text_repr------------------------:", text_repr.shape)
+        #print("_run_vision_training text_repr------------------------:", text_repr.shape)
+        print("calling get_image_feature------------------------:")
         image_features = self.model.get_image_features(image_t)
         print("_run_vision_training image_features------------------------:", image_features.shape)
         #_, attended_image = self.sequential(image_features, other_repr=text_repr)
