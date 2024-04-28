@@ -154,7 +154,7 @@ class IBAInterpreter:
         self.train_steps = steps
         self.bottleneck = InformationBottleneck(estim.mean(), estim.std(), device=self.device)
         self.cross_attention = CrossAttentionLayer(dim_model)
-        self.sequential = mySequential(self.original_layer, self.bottleneck, self.cross_attention)
+        self.sequential = mySequential(self.original_layer, self.cross_attention, self.bottleneck)
 
 
 
