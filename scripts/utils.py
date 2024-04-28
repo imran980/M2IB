@@ -45,6 +45,7 @@ class mySequential(nn.Sequential):
 
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
+    print("calling replace_layer--------------------------")
     def replace_in(model: nn.Module, target: nn.Module, replacement: nn.Module):
         for name, submodule in model.named_children():
             if submodule == target:
@@ -61,6 +62,7 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
         return False
 
     def forward_wrapper(self, *args, **kwargs):
+        print("calling forward_wrapper replace_layer--------------------------")
         if hasattr(self, 'module') and isinstance(self.module, mySequential):
             # Extract the first argument from *args (inputs)
             inputs = args[0] if args else None
