@@ -12,7 +12,7 @@ from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 
 # Feature Map is the output of a certain layer given X
 def extract_feature_map(model, layer_idx, x):
-    print("methods x----------------:", x)
+    #print("methods x----------------:", x)
     with torch.no_grad():
         states = model(x, output_hidden_states=True) 
         feature = states['hidden_states'][layer_idx+1] # +1 because the first output is embedding 
@@ -40,10 +40,10 @@ def get_compression_estimator(var, layer, features):
 
 
 def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
-    print("first text_heatmap_iba-------------------------:", text_t)
-    print("first text_heatmap_iba-------------------------:", text_t)
-    print("first text_heatmap_iba shape of text-------------------------:", text_t.shape)
-    print("first text_heatmap_iba shape of image-------------------------:", image_t.shape)
+    #print("first text_heatmap_iba-------------------------:", text_t)
+    #print("first text_heatmap_iba-------------------------:", text_t)
+    #print("first text_heatmap_iba shape of text-------------------------:", text_t.shape)
+    #print("first text_heatmap_iba shape of image-------------------------:", image_t.shape)
     features = extract_feature_map(model.text_model, layer_idx, text_t)
     layer = extract_bert_layer(model.text_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
@@ -51,10 +51,10 @@ def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_s
     return reader.text_heatmap(text_t, image_t)
 
 def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
-    print("first text_heatmap_iba-------------------------:", text_t)
-    print("first text_heatmap_iba-------------------------:", text_t)
-    print("first text_heatmap_iba shape of text-------------------------:", text_t.shape)
-    print("first text_heatmap_iba shape of image-------------------------:", image_t.shape)
+    #print("first text_heatmap_iba-------------------------:", text_t)
+    #print("first text_heatmap_iba-------------------------:", text_t)
+    #print("first text_heatmap_iba shape of text-------------------------:", text_t.shape)
+    #print("first text_heatmap_iba shape of image-------------------------:", image_t.shape)
     features = extract_feature_map(model.vision_model, layer_idx, image_t)
     layer = extract_bert_layer(model.vision_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
