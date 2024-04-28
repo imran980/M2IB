@@ -46,7 +46,9 @@ class image_encoder_wrapper(nn.Module):
             layer.forward = partial(permute_then_forward, layer)
 
     def forward(self, x, output_hidden_states=False, emb_input=False):
+        print("calling image_encoder_wrapper forward -------------------:")
         if not emb_input:
+            print("calling embeddings -------------------:")
             x = self.embeddings(x)
         x = self.ln_pre(x).to(self.dtype)
         batch_size, num_patches, _ = x.shape
@@ -119,10 +121,10 @@ class ClipWrapper(nn.Module):
         self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
         self.dtype = model.dtype
 
-   # def get_image_features(self, x, output_hidden_states=False, emb_input=False):
-   #     return self.vision_model(x, output_hidden_states, emb_input)
+    print("calling get_image_feature wrapper -------------------:")
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
-        return self.vision_model(x, output_hidden_states=output_hidden_states, emb_input=emb_input)
+        print("returning get_image_feature wrapper -------------------:")
+        return self.vision_model(x, output_hidden_states, emb_input)
 
     def get_text_features(self, x, output_hidden_states=False, emb_input=False):
         return self.text_model(x, output_hidden_states, emb_input)
