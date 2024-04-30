@@ -205,7 +205,7 @@ class IBAInterpreter:
         image_features = self.model.get_image_features(image_t)
         print("_run_vision_training image_features------------------------:", image_features.shape)
         #_, attended_image = self.sequential(image_features, other_repr=text_repr)
-        _, attended_image = self.sequential(image_features, text_repr)
+        _, attended_image = self.sequential(image_features, other_repr=text_repr)
         print("_run_vision_training attended_image------------------------:", attended_image.shape)
         loss_c, loss_f, loss_t = self._train_bottleneck(attended_image, **kwargs)
         print("_run_image_training done")
