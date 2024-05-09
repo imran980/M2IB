@@ -9,21 +9,25 @@ class CrossAttentionLayer(nn.Module):
         self.key = nn.Linear(dim_model, dim_model)
         self.value = nn.Linear(dim_model, dim_model)
         self.softmax = nn.Softmax(dim=-1)
-    def forward(self, inputs):
-        batch_size, sequence_length, embedding_size = inputs.size()
-        print("cross attention inputs shape---------------", inputs.shape)
-        print("cross attention inputs---------------", inputs)
-        query = self.query(inputs)
-        print("cross attention query---------------", query)
-        key = self.key(inputs)
-        print("cross attention key---------------", key)
-        attention_scores = torch.matmul(query, key.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.dim_model, dtype=torch.float))
 
-        attention_weights = self.softmax(attention_scores)
-        print("cross attention attention_scores---------------", attention_scores)
-        value = self.value(inputs)
-        print("cross attention inputs---------------", value)
-        cross_attended_vision = torch.matmul(attention_weights, value)
-        cross_attended_text = torch.matmul(attention_weights.transpose(-2, -1), inputs)
-        
-        return cross_attended_vision, cross_attended_text
+    def forward(self, text_repr, image_repr):
+        batch_size, sequence_length, embedding_size = text_repr.size()
+        _, _, embedding_size = image_repr.size()
+
+        # Text cross-attention
+        text_query = self.query(text_repr)
+        image_key = self.key(image_repr)
+        image_value = self.value(image_repr)
+        cross_attention_scores = torch.matmul(text_query, image_key.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.dim_model, dtype=torch.float))
+        cross_attention_weights = self.softmax(cross_attention_scores)
+        cross_attended_text = torch.matmul(cross_attention_weights, image_value)
+
+        # Image cross-attention
+        image_query = self.query(image_repr)
+        text_key = self.key(text_repr)
+        text_value = self.value(text_repr)
+        cross_attention_scores = torch.matmul(image_query, text_key.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.dim_model, dtype=torch.float))
+        cross_attention_weights = self.softmax(cross_attention_scores)
+        cross_attended_image = torch.matmul(cross_attention_weights, text_value)
+
+        return cross_attended_text, cross_attended_image
