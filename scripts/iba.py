@@ -192,6 +192,7 @@ class IBAInterpreter:
         saliency = saliency.squeeze().cpu().detach().numpy()
         return normalize(saliency)
 
+        
     def _run_vision_training(self, text_t, image_t, **kwargs):
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
         #print("_run_vision_training text_t------------------------:", text_t.shape)
@@ -199,16 +200,19 @@ class IBAInterpreter:
         #print("_run_vision_training image_t------------------------:", image_t.shape)
         #print("run_vision_training image_t.datatype------------------------:", image_t.dtype)
         text_repr = self.model.get_text_features(text_t)
-        #print("_run_vision_training text_repr------------------------:", text_repr.shape)
+         #print("_run_vision_training text_repr------------------------:", text_repr.shape)
         print("calling get_image_feature------------------------:")
         print("model is of type-------------------:", type(self.model))
         image_features = self.model.get_image_features(image_t)
         print("_run_vision_training image_features------------------------:", image_features.shape)
-        #_, attended_image = self.sequential(image_features, other_repr=text_repr)
-        _, attended_image = self.sequential(image_features, other_repr=text_repr)
-        print("_run_vision_training attended_image------------------------:", attended_image.shape)
+    
+        # Pass image_features and text_repr through the CrossAttention layer
+        cross_attended_image, cross_attended_text = self.cross_attention(image_features, text_repr)
+
+        # Pass the cross_attended_image to the sequential module (which includes the bottleneck)
+        _, attended_image = self.sequential(cross_attended_image)
+    
         loss_c, loss_f, loss_t = self._train_bottleneck(attended_image, **kwargs)
-        print("_run_image_training done")
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
         
@@ -216,13 +220,18 @@ class IBAInterpreter:
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
         print("_run_text_training text_t------------------------:", text_t.shape)
         print("_run_text_training image_t------------------------:", image_t.shape)
+        replace_layer(self.model.text_model, self.original_layer, self.sequential)
         image_repr = self.model.get_image_features(image_t)
         print("_run_text_training text_repr------------------------:", image_repr.shape)
         text_features = self.model.get_text_features(text_t)
-        #_, attended_image = self.sequential(text_features, other_repr=image_repr)
-        _, attended_image = self.sequential(text_features, image_repr)
+
+        # Pass text_features and image_repr through the CrossAttention layer
+        cross_attended_text, cross_attended_image = self.cross_attention(text_features, image_repr)
+
+        # Pass the cross_attended_text to the sequential module (which includes the bottleneck)
+        _, attended_text = self.sequential(cross_attended_text)
         print("_run_text_training attended_text------------------------:", attended_image.shape)
-        loss_c, loss_f, loss_t = self._train_bottleneck(attended_image, **kwargs)
+        loss_c, loss_f, loss_t = self._train_bottleneck(attended_text, **kwargs)
         print("_run_text_training done")
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
