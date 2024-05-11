@@ -36,7 +36,7 @@ class mySequential(nn.Sequential):
                 print("else text_repr datatype------------------------:", text_repr.dtype)
         return text_repr, image_repr
 
-
+# start of the new code
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     print("calling replace_layer--------------------------")
     def replace_in(model: nn.Module, target: nn.Module, replacement: nn.Module):
@@ -53,6 +53,16 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
                 if replace_in(submodule, target, replacement):
                     return True
         return False
+
+    if not replace_in(model, target, replacement):
+        raise RuntimeError("Cannot substitute layer: Layer of type " + target.__class__.__name__ + " is not a child of given parent of type " + model.__class__.__name__)
+
+    # Set the _original_forward attribute if it doesn't exist
+    if not hasattr(model, '_original_forward'):
+        setattr(model, '_original_forward', model.forward)
+
+    setattr(model, 'forward', types.MethodType(forward_wrapper, model))
+    # end of the new code
 
     def forward_wrapper(self, *args, **kwargs):
         if hasattr(self, 'module') and isinstance(self.module, mySequential):
