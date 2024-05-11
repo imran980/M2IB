@@ -15,33 +15,26 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
 class mySequential(nn.Sequential):
-    def forward(self, inputs, other_repr=None, **kwargs):
-        if isinstance(inputs, tuple):
-            print("MySequential: Receiving input shape:", inputs[0].shape)
-            print("MySequential datatype------------------------:", inputs[0].dtype)
-        else:
-            print("MySequential: Receiving input shape:", inputs.shape)
-            print("MySequential datatype------------------------:", inputs.dtype)
-
+    def forward(self, text_repr, image_repr):
         for module in self._modules.values():
+            print("text_repr shape:", text_repr.shape)
+            print("image_repr shape:", image_repr.shape)
+            print("image_repr datatype------------------------:", image_repr.dtype)
+            print("text_repr datatype------------------------:", text_repr.dtype)
             if isinstance(module, CrossAttentionLayer):
-                if other_repr is None:
-                    raise ValueError("Cross-attention layer requires 'other_repr' input.")
-                inputs, other_repr = module(inputs, other_repr)
+                text_repr, image_repr = module(text_repr, image_repr)
+                print("CrossAttentionLayer text_repr shape:", text_repr.shape)
+                print("CrossAttentionLayer image_repr shape:", image_repr.shape)
+                print("CrossAttentionLayer image_repr datatype------------------------:", image_repr.dtype)
+                print("CrossAttentionLayer text_repr datatype------------------------:", text_repr.dtype)
             else:
-                if isinstance(inputs, tuple):
-                    inputs = module(*inputs)
-                else:
-                    inputs = module(inputs)
-
-        if isinstance(inputs, tuple):
-            print("MySequential: Returning input shape:", inputs[0].shape)
-            print("MySequential: datatype:", inputs[0].dtype)
-        else:
-            print("MySequential: Returning input shape:", inputs.shape)
-            print("MySequential: datatype:", inputs[0].dtype)
-
-        return inputs
+                text_repr = module(text_repr)
+                image_repr = module(image_repr)
+                print("else text_repr shape:", text_repr.shape)
+                print("else image_repr shape:", image_repr.shape)
+                print("else image_repr datatype------------------------:", image_repr.dtype)
+                print("else text_repr datatype------------------------:", text_repr.dtype)
+        return text_repr, image_repr
 
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
