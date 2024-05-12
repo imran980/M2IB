@@ -6,17 +6,13 @@ import copy
 import torch
 import torch.nn as nn
 from functools import partial
-from scripts.utils import mySequential
-import pdb
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def permute_then_forward(self, x, other_repr=None):
+def permute_then_forward(self, x):
     x = x.permute(1, 0, 2)
     x = x + self.attention(self.ln_1(x))
     x = x + self.mlp(self.ln_2(x))
-    x = x.permute(1, 0, 2)
-    if isinstance(self, mySequential):
-        x = self.forward(x, other_repr)
+    x = x.permute(1, 0, 2) 
     return x
 
 class VisionEmbeddings(nn.Module):
@@ -37,7 +33,6 @@ class VisionEmbeddings(nn.Module):
 
 class image_encoder_wrapper(nn.Module):
     def __init__(self, model, dtype):
-        print("Image_encoder_wrapper-----------------:")
         super().__init__()
         self.transformer = model.transformer
         self.embeddings = VisionEmbeddings(model.class_embedding,  model.conv1, model.positional_embedding, dtype)
@@ -46,26 +41,27 @@ class image_encoder_wrapper(nn.Module):
         self.proj = model.proj
         self.dtype = dtype
         for layer in self.transformer.resblocks:
-            layer.forward = partial(permute_then_forward, layer, other_repr=None)
+            layer.forward = partial(permute_then_forward, layer)
 
-    def forward(self, x, output_hidden_states=False, emb_input=False, other_repr=None):
-        print("forward of image encoder wrapper-----------------------")
+    def forward(self, x, output_hidden_states=False, emb_input = False):
         if not emb_input:
             x = self.embeddings(x)
         x = self.ln_pre(x).to(self.dtype)
+        #x = x.permute(1, 0, 2)  # NLD -> LND
         hidden_states = [x.clone().detach()]
         for layer in self.transformer.resblocks:
-            x = layer(x.to(self.dtype), other_repr=other_repr)
+            x = layer(x.to(self.dtype))
             if type(x) == tuple and len(x) == 1: x = x[0]
             hidden_states.append(x.clone().detach())
+        #x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_post(x[:, 0, :]).type(self.dtype)
         if self.proj is not None:
             x = x @ self.proj
         if output_hidden_states:
-            return {'pooler_output': x, 'hidden_states': hidden_states}
+            return {'pooler_output':x, 'hidden_states':hidden_states}
         else:
             return x
-    
+
 class TextEmbeddings(nn.Module):
     def __init__(self, token_embedding, positional_embedding, dtype):
         super().__init__()
@@ -74,7 +70,6 @@ class TextEmbeddings(nn.Module):
         self.dtype = dtype
 
     def forward(self, text):
-        print("clip wrapper textembeddings--------------------:", text.shape)
         x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
         x = x + self.positional_embedding.type(self.dtype)[:x.shape[1], :]#(1,50,512)
         return x
@@ -87,13 +82,12 @@ class text_encoder_wrapper(nn.Module):
         self.ln_final = model.ln_final
         self.text_projection = model.text_projection
         self.dtype = model.dtype
-
         for layer in self.transformer.resblocks:
             layer.attn_mask = None
-            layer.forward = partial(permute_then_forward, layer, other_repr=None)
-
+            layer.forward = partial(permute_then_forward, layer)
+        
+    
     def forward(self, x, output_hidden_states=False, emb_input=False):
-        print("forward of text encoder wrapper-----------------------")
         maxidx = -1 #x.argmax(dim=-1) take features from the eot embedding (eot_token is the highest number in each sequence)
         if not emb_input:
             x = self.embeddings(x)
@@ -120,9 +114,7 @@ class ClipWrapper(nn.Module):
         self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
         self.dtype = model.dtype
 
-    print("calling get_image_feature wrapper -------------------:")
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
-        print("returning get_image_feature wrapper -------------------:")
         return self.vision_model(x, output_hidden_states, emb_input)
 
     def get_text_features(self, x, output_hidden_states=False, emb_input=False):
