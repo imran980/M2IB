@@ -9,11 +9,13 @@ from functools import partial
 import pdb
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def permute_then_forward(self, x):
+def permute_then_forward(self, x, other_repr=None):
     x = x.permute(1, 0, 2)
     x = x + self.attention(self.ln_1(x))
     x = x + self.mlp(self.ln_2(x))
-    x = x.permute(1, 0, 2) 
+    x = x.permute(1, 0, 2)
+    if isinstance(self, mySequential):
+        x = self.forward(x, other_repr)
     return x
 
 class VisionEmbeddings(nn.Module):
