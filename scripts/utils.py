@@ -61,7 +61,6 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     if not hasattr(model, '_original_forward'):
         setattr(model, '_original_forward', model.forward)
 
-    setattr(model, 'forward', types.MethodType(forward_wrapper, model))
     # end of the new code
 
     def forward_wrapper(self, *args, **kwargs):
