@@ -88,9 +88,10 @@ class text_encoder_wrapper(nn.Module):
         self.ln_final = model.ln_final
         self.text_projection = model.text_projection
         self.dtype = model.dtype
+
         for layer in self.transformer.resblocks:
             layer.attn_mask = None
-            layer.forward = partial(permute_then_forward, layer)
+            layer.forward = partial(permute_then_forward, layer, other_repr=None)
 
     def forward(self, x, output_hidden_states=False, emb_input=False):
         print("forward of text encoder wrapper-----------------------")
