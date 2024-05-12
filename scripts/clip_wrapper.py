@@ -45,7 +45,7 @@ class image_encoder_wrapper(nn.Module):
         self.proj = model.proj
         self.dtype = dtype
         for layer in self.transformer.resblocks:
-            layer.forward = partial(permute_then_forward, layer)
+            layer.forward = partial(permute_then_forward, layer, other_repr=None)
 
     def forward(self, x, output_hidden_states=False, emb_input = False):
         print("forward of image encoder wrapper-----------------------")
