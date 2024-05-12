@@ -193,63 +193,49 @@ class IBAInterpreter:
         return normalize(saliency)
 
         
-    def _run_vision_training(self, text_t, image_t, **kwargs):
-        replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-        #print("_run_vision_training text_t------------------------:", text_t.shape)
-        #print("run_vision_training text_t.datatype------------------------:", text_t.dtype)
-        #print("_run_vision_training image_t------------------------:", image_t.shape)
-        #print("run_vision_training image_t.datatype------------------------:", image_t.dtype)
-        text_repr = self.model.get_text_features(text_t)
-         #print("_run_vision_training text_repr------------------------:", text_repr.shape)
-        print("calling get_image_feature------------------------:")
-        print("model is of type-------------------:", type(self.model))
-        image_features = self.model.get_image_features(image_t)
-        print("_run_vision_training image_features------------------------:", image_features.shape)
-    
-        # Pass image_features and text_repr through the CrossAttention layer
-        cross_attended_image, cross_attended_text = self.cross_attention(image_features, text_repr)
-
-        # Pass the cross_attended_image to the sequential module (which includes the bottleneck)
-        _, attended_image = self.sequential(cross_attended_image)
-    
-        loss_c, loss_f, loss_t = self._train_bottleneck(attended_image, **kwargs)
-        replace_layer(self.model.vision_model, self.sequential, self.original_layer)
-        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-        
     def _run_text_training(self, text_t, image_t, **kwargs):
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
-        print("_run_text_training text_t------------------------:", text_t.shape)
-        print("_run_text_training image_t------------------------:", image_t.shape)
-        replace_layer(self.model.text_model, self.original_layer, self.sequential)
+
+        # Get text and image representations
         image_repr = self.model.get_image_features(image_t)
-        print("_run_text_training text_repr------------------------:", image_repr.shape)
         text_features = self.model.get_text_features(text_t)
 
-        # Pass text_features and image_repr through the CrossAttention layer
+        # Apply cross-attention
         cross_attended_text, cross_attended_image = self.cross_attention(text_features, image_repr)
 
-        # Pass the cross_attended_text to the sequential module (which includes the bottleneck)
-        _, attended_text = self.sequential(cross_attended_text)
-        print("_run_text_training attended_text------------------------:", attended_image.shape)
-        loss_c, loss_f, loss_t = self._train_bottleneck(attended_text, **kwargs)
-        print("_run_text_training done")
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_text, cross_attended_image)
+
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-        
-    def _train_bottleneck(self, attended_repr, **kwargs):
-        batch = attended_repr.expand(self.batch_size, *attended_repr.shape[1:])
+
+    def _run_vision_training(self, text_t, image_t, **kwargs):
+        replace_layer(self.model.vision_model, self.original_layer, self.sequential)
+
+        # Get text and image representations
+        text_repr = self.model.get_text_features(text_t)
+        image_features = self.model.get_image_features(image_t)
+
+        # Apply cross-attention
+        cross_attended_image, cross_attended_text = self.cross_attention(image_features, text_repr)
+
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_image, cross_attended_text)
+
+        replace_layer(self.model.vision_model, self.sequential, self.original_layer)
+        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
+
+    def _train_bottleneck(self, cross_attended_text: torch.Tensor, cross_attended_image: torch.Tensor):
+        batch = cross_attended_text.expand(self.batch_size, *cross_attended_text.shape[1:]), cross_attended_image.expand(self.batch_size, *cross_attended_image.shape[1:])
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         self.bottleneck.reset_alpha()
         self.model.eval()
+
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
-            print("_train_bottleneck batch[0]------------------------:", batch[0])
-            print("_train_bottleneck batch[1]------------------------:", batch[1])
-            out = self.bottleneck(batch)
-            print("_train_bottleneck text_t------------------------:", out.shape)
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=out, labels=batch)
+            out = batch
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=out[0], labels=out[1])
             loss_t.backward()
             optimizer.step(closure=None)
+
         return loss_c, loss_f, loss_t
     
        
