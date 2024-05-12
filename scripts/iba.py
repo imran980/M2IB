@@ -193,46 +193,35 @@ class IBAInterpreter:
         return normalize(saliency)
 
         
-    def _run_text_training(self, text_t, image_t, **kwargs):
+    def _run_text_training(self, text_t, image_t):
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
-
-        # Get text and image representations
-        image_repr = self.model.get_image_features(image_t)
-        text_features = self.model.get_text_features(text_t)
-
-        # Apply cross-attention
-        cross_attended_text, cross_attended_image = self.cross_attention(text_features, image_repr)
-
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_text, cross_attended_image)
-
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-
-    def _run_vision_training(self, text_t, image_t, **kwargs):
+    
+    def _run_vision_training(self, text_t, image_t):
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-
-        # Get text and image representations
-        text_repr = self.model.get_text_features(text_t)
-        image_features = self.model.get_image_features(image_t)
-
-        # Apply cross-attention
-        cross_attended_image, cross_attended_text = self.cross_attention(image_features, text_repr)
-
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_image, cross_attended_text)
-
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
-    def _train_bottleneck(self, cross_attended_text: torch.Tensor, cross_attended_image: torch.Tensor):
-        batch = cross_attended_text.expand(self.batch_size, *cross_attended_text.shape[1:]), cross_attended_image.expand(self.batch_size, *cross_attended_image.shape[1:])
+    def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
+        batch_text = text_t.expand(self.batch_size, *text_t.shape[1:])
+        batch_image = image_t.expand(self.batch_size, *image_t.shape[1:])
+
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         self.bottleneck.reset_alpha()
         self.model.eval()
 
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
-            out = batch
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=out[0], labels=out[1])
+
+            text_repr = self.model.get_text_features(batch_text)
+            image_repr = self.model.get_image_features(batch_image)
+
+            cross_attended_text, cross_attended_image = self.cross_attention(text_repr, image_repr)
+
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=cross_attended_image, labels=cross_attended_text)
             loss_t.backward()
             optimizer.step(closure=None)
 
