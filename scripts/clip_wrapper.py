@@ -43,22 +43,23 @@ class image_encoder_wrapper(nn.Module):
         for layer in self.transformer.resblocks:
             layer.forward = partial(permute_then_forward, layer)
 
-    def forward(self, x, output_hidden_states=False, emb_input = False):
+    def forward(self, x, output_hidden_states=False, emb_input=False, other_repr=None):
         if not emb_input:
             x = self.embeddings(x)
         x = self.ln_pre(x).to(self.dtype)
-        #x = x.permute(1, 0, 2)  # NLD -> LND
         hidden_states = [x.clone().detach()]
         for layer in self.transformer.resblocks:
-            x = layer(x.to(self.dtype))
+            if isinstance(layer, mySequential):
+                x = layer(x.to(self.dtype), other_repr=other_repr)
+            else:
+                x = layer(x.to(self.dtype))
             if type(x) == tuple and len(x) == 1: x = x[0]
             hidden_states.append(x.clone().detach())
-        #x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_post(x[:, 0, :]).type(self.dtype)
         if self.proj is not None:
             x = x @ self.proj
         if output_hidden_states:
-            return {'pooler_output':x, 'hidden_states':hidden_states}
+            return {'pooler_output': x, 'hidden_states': hidden_states}
         else:
             return x
 
@@ -87,7 +88,7 @@ class text_encoder_wrapper(nn.Module):
             layer.forward = partial(permute_then_forward, layer)
         
     
-    def forward(self, x, output_hidden_states=False, emb_input=False):
+    def forward(self, x, output_hidden_states=False, emb_input=False, other_repr=None):
         maxidx = -1 #x.argmax(dim=-1) take features from the eot embedding (eot_token is the highest number in each sequence)
         if not emb_input:
             x = self.embeddings(x)
