@@ -16,7 +16,7 @@ def normalize(x):
 
 
 class mySequential(nn.Sequential):
-    def forward(self, text_repr, image_repr):
+    def forward(self, text_repr, image_repr, other_repr=None):
         for module in self._modules.values():
             if isinstance(module, CrossAttentionLayer):
                 text_repr, image_repr = module(text_repr, image_repr)
