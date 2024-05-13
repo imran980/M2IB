@@ -51,7 +51,7 @@ class image_encoder_wrapper(nn.Module):
         hidden_states = [x.clone().detach()]
         for layer in self.transformer.resblocks:
             if isinstance(layer, mySequential):
-                x = layer(x.to(self.dtype), other_repr=other_repr)
+                x = layer(x.to(self.dtype))
             else:
                 x = layer(x.to(self.dtype))
             if type(x) == tuple and len(x) == 1: x = x[0]
