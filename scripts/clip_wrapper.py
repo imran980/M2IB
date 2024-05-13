@@ -44,7 +44,7 @@ class image_encoder_wrapper(nn.Module):
         for layer in self.transformer.resblocks:
             layer.forward = partial(permute_then_forward, layer)
 
-    def forward(self, x, output_hidden_states=False, emb_input=False, other_repr=None):
+    def forward(self, x, output_hidden_states=False, emb_input=False):
         if not emb_input:
             x = self.embeddings(x)
         x = self.ln_pre(x).to(self.dtype)
