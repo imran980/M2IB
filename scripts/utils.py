@@ -16,15 +16,13 @@ def normalize(x):
 
 
 class mySequential(nn.Sequential):
-    def forward(self, *inputs, **kwargs):
+    def forward(self, *input, **kwargs):
         for module in self._modules.values():
-            if isinstance(module, CrossAttentionLayer):
-                text_repr, image_repr = inputs
-                text_repr, image_repr = module(text_repr, image_repr)
-                inputs = (text_repr, image_repr)
+            if type(input) == tuple:
+                input = module(*input)
             else:
-                inputs = tuple(module(inp) for inp in inputs)
-        return inputs
+                input = module(input)
+        return input
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     """
