@@ -6,6 +6,7 @@ import copy
 import torch
 import torch.nn as nn
 from functools import partial
+from scripts.utils import mySequential
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def permute_then_forward(self, x):
