@@ -15,16 +15,13 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
 
-class mySequential(nn.Sequential):
-    def forward(self, image_repr):
-        text_repr = None  # Initialize text_repr to None
-
-        for module in self._modules.values():
-            if isinstance(module, CrossAttentionLayer):
-                text_repr, image_repr = module(None, image_repr)
-            else:
-                image_repr = module(image_repr)
-        return image_repr
+def forward(self, text_repr, image_repr):
+    for module in self._modules.values():
+        if isinstance(module, CrossAttentionLayer):
+            text_repr, image_repr = module(text_repr, image_repr)
+        else:
+            text_repr, image_repr = module(text_repr), module(image_repr)
+    return text_repr, image_repr
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     """
