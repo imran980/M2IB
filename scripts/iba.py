@@ -218,8 +218,10 @@ class IBAInterpreter:
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
 
-            cross_attended_text, cross_attended_image = self.sequential(text_repr, image_repr)
-   
+            text_repr = self.model.get_text_features(batch_text)
+            image_repr = self.model.get_image_features(batch_image)
+            cross_attended_text, cross_attended_image = self.model.get_cross_attended_features(text_repr, image_repr)
+
             loss_c, loss_f, loss_t = self.calc_loss(outputs=cross_attended_image, labels=cross_attended_text)
             loss_t.backward()
             optimizer.step(closure=None)
