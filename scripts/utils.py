@@ -14,14 +14,44 @@ import types
 def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
-class mySequential(nn.Sequential):
-    def forward(self, text_repr, image_repr):
-        for module in self._modules.values():
-            if isinstance(module, CrossAttentionLayer):
-                text_repr, image_repr = module(text_repr, image_repr)
-            else:
-                text_repr, image_repr = module(text_repr), module(image_repr)
-        return text_repr, image_repr
+
+class ImagePathway(nn.Module):
+    def __init__(self, original_layer, bottleneck, other_layers):
+        super(ImagePathway, self).__init__()
+        self.sequential = nn.Sequential(
+            original_layer,
+            *other_layers,
+            bottleneck
+        )
+
+    def forward(self, image_repr):
+        return self.sequential(image_repr)
+
+class TextPathway(nn.Module):
+    def __init__(self, original_layer, bottleneck, other_layers):
+        super(TextPathway, self).__init__()
+        self.sequential = nn.Sequential(
+            original_layer,
+            *other_layers,
+            bottleneck
+        )
+
+    def forward(self, text_repr):
+        return self.sequential(text_repr)
+
+class CrossAttentionModule(nn.Module):
+    def __init__(self, image_pathway, text_pathway, cross_attention):
+        super(CrossAttentionModule, self).__init__()
+        self.image_pathway = image_pathway
+        self.text_pathway = text_pathway
+        self.cross_attention = cross_attention
+
+    def forward(self, image_repr, text_repr):
+        image_repr = self.image_pathway(image_repr)
+        text_repr = self.text_pathway(text_repr)
+        cross_attended_image, cross_attended_text = self.cross_attention(text_repr, image_repr)
+        # Merge or combine the cross-attended representations as needed
+        return cross_attended_image, cross_attended_text
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     """
