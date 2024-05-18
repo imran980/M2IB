@@ -107,6 +107,20 @@ class text_encoder_wrapper(nn.Module):
             return {'pooler_output':x, 'hidden_states':hidden_states}
         else:
             return x
+            
+class CLIPEncoderWrapper(nn.Module):
+    def __init__(self, clip_model, layer_idx, dim_model):
+        super().__init__()
+        self.text_encoder = text_encoder_wrapper(clip_model)
+        self.image_encoder = image_encoder_wrapper(clip_model, clip_model.dtype)
+        self.cross_attention = CrossAttentionLayer(dim_model)
+        self.layer_idx = layer_idx
+
+    def forward(self, text_input, image_input):
+        text_repr = self.text_encoder(text_input, emb_input=False, output_hidden_states=True)['hidden_states'][self.layer_idx + 1]
+        image_repr = self.image_encoder(image_input, emb_input=False, output_hidden_states=True)['hidden_states'][self.layer_idx + 1]
+        cross_attended_text, cross_attended_image = self.cross_attention(text_repr, image_repr)
+        return cross_attended_text, cross_attended_image
 
 class ClipWrapper(nn.Module):
     def __init__(self, model):
