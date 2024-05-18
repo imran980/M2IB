@@ -215,13 +215,13 @@ class IBAInterpreter:
         self.bottleneck.reset_alpha()
         self.model.eval()
 
+        clip_encoder_wrapper = CLIPEncoderWrapper(self.model, self.original_layer.layer_idx, self.cross_attention.dim_model)
+
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
 
-            text_repr = self.model.get_text_features(batch_text)
-            image_repr = self.model.get_image_features(batch_image)
-            cross_attended_text, cross_attended_image = self.model.get_cross_attended_features(text_repr, image_repr)
-
+            cross_attended_text, cross_attended_image = clip_encoder_wrapper(batch_text, batch_image)
+    
             loss_c, loss_f, loss_t = self.calc_loss(outputs=cross_attended_image, labels=cross_attended_text)
             loss_t.backward()
             optimizer.step(closure=None)
