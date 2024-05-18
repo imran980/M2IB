@@ -113,6 +113,8 @@ class ClipWrapper(nn.Module):
         super().__init__()
         self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype).to(device)
         self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
+        self.cross_attention_module = CrossAttentionModule(CrossAttentionLayer(dim_model=768))
+
         self.dtype = model.dtype
 
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
@@ -120,3 +122,6 @@ class ClipWrapper(nn.Module):
 
     def get_text_features(self, x, output_hidden_states=False, emb_input=False):
         return self.text_model(x, output_hidden_states, emb_input)
+
+    def get_cross_attended_features(self, text_repr, image_repr):
+        return self.cross_attention_module(text_repr, image_repr)
