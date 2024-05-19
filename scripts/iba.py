@@ -195,15 +195,13 @@ class IBAInterpreter:
         
     def _run_text_training(self, text_t, image_t):
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
-        text_repr, image_repr = self.model.get_text_features(text_t), self.model.get_image_features(image_t)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_repr, image_repr)
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-
+    
     def _run_vision_training(self, text_t, image_t):
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-        text_repr, image_repr = self.model.get_text_features(text_t), self.model.get_image_features(image_t)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_repr, image_repr)
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
@@ -215,13 +213,14 @@ class IBAInterpreter:
         self.bottleneck.reset_alpha()
         self.model.eval()
 
-        clip_encoder_wrapper = CLIPEncoderWrapper(self.model, self.original_layer.layer_idx, self.cross_attention.dim_model)
-
         for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
             optimizer.zero_grad()
 
-            cross_attended_text, cross_attended_image = clip_encoder_wrapper(batch_text, batch_image)
-    
+            text_repr = self.model.get_text_features(batch_text)
+            image_repr = self.model.get_image_features(batch_image)
+
+            cross_attended_text, cross_attended_image = self.cross_attention(text_repr, image_repr)
+
             loss_c, loss_f, loss_t = self.calc_loss(outputs=cross_attended_image, labels=cross_attended_text)
             loss_t.backward()
             optimizer.step(closure=None)
