@@ -152,9 +152,11 @@ class IBAInterpreter:
         self.progbar = progbar
         self.lr = lr
         self.train_steps = steps
-        self.bottleneck = InformationBottleneck(estim.mean(), estim.std(), device=self.device)
         self.cross_attention = CrossAttentionLayer(dim_model)
-        self.sequential = mySequential(self.original_layer, self.cross_attention, self.bottleneck)
+        self.image_pathway = ImagePathway(estim.get_layer(), self.bottleneck, [self.cross_attention])
+        self.text_pathway = TextPathway(estim.get_layer(), self.bottleneck, [self.cross_attention])
+        self.cross_attention_module = CrossAttentionModule(self.image_pathway, self.text_pathway, self.cross_attention)
+
 
 
 
@@ -194,15 +196,15 @@ class IBAInterpreter:
 
         
     def _run_text_training(self, text_t, image_t):
-        replace_layer(self.model.text_model, self.original_layer, self.sequential)
+        replace_layer(self.model.text_model, self.original_layer, self.text_pathway)
         loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
-        replace_layer(self.model.text_model, self.sequential, self.original_layer)
+        replace_layer(self.model.text_model, self.text_pathway, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-    
+
     def _run_vision_training(self, text_t, image_t):
-        replace_layer(self.model.vision_model, self.original_layer, self.sequential)
+        replace_layer(self.model.vision_model, self.original_layer, self.image_pathway)
         loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
-        replace_layer(self.model.vision_model, self.sequential, self.original_layer)
+        replace_layer(self.model.vision_model, self.image_pathway, self.original_layer)
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
@@ -219,7 +221,7 @@ class IBAInterpreter:
             text_repr = self.model.get_text_features(batch_text)
             image_repr = self.model.get_image_features(batch_image)
 
-            cross_attended_text, cross_attended_image = self.cross_attention(text_repr, image_repr)
+            cross_attended_image, cross_attended_text = self.cross_attention_module(image_repr, text_repr)
 
             loss_c, loss_f, loss_t = self.calc_loss(outputs=cross_attended_image, labels=cross_attended_text)
             loss_t.backward()
