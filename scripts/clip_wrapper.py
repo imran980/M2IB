@@ -127,7 +127,8 @@ class ClipWrapper(nn.Module):
         super().__init__()
         self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype).to(device)
         self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
-        self.cross_attention_module = CrossAttentionModule(CrossAttentionLayer(dim_model=768))
+        #self.cross_attention_module = CrossAttentionModule(CrossAttentionLayer(dim_model=768))
+        self.cross_attention_module = CrossAttentionModule(self.image_pathway, self.text_pathway, CrossAttentionLayer(dim_model=768))
 
         self.dtype = model.dtype
 
