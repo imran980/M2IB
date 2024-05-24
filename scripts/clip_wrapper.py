@@ -129,6 +129,8 @@ class ClipWrapper(nn.Module):
         self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
         #self.cross_attention_module = CrossAttentionModule(CrossAttentionLayer(dim_model=768))
         self.cross_attention_module = CrossAttentionModule(self.image_pathway, self.text_pathway, CrossAttentionLayer(dim_model=768))
+        self.image_pathway = ImagePathway(self.vision_model.transformer.resblocks[-1], information_bottleneck, [])
+        self.text_pathway = TextPathway(self.text_model.transformer.resblocks[-1], information_bottleneck, [])
 
         self.dtype = model.dtype
 
@@ -139,4 +141,5 @@ class ClipWrapper(nn.Module):
         return self.text_model(x, output_hidden_states, emb_input)
 
     def get_cross_attended_features(self, text_repr, image_repr):
-        return self.cross_attention_module(text_repr, image_repr)
+        cross_attended_image, cross_attended_text = self.cross_attention_module(image_repr, text_repr)
+        return cross_attended_image, cross_attended_text
