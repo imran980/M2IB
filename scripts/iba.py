@@ -153,11 +153,9 @@ class IBAInterpreter:
         self.lr = lr
         self.train_steps = steps
         self.cross_attention = CrossAttentionLayer(dim_model)
-        self.image_pathway = ImagePathway(estim.get_layer(), self.bottleneck, [self.cross_attention])
-        self.text_pathway = TextPathway(estim.get_layer(), self.bottleneck, [self.cross_attention])
+        self.image_pathway = ImagePathway(estim.get_layer(), InformationBottleneck(mean, std, device=device), [self.cross_attention])
+        self.text_pathway = TextPathway(estim.get_layer(), InformationBottleneck(mean, std, device=device), [self.cross_attention])
         self.cross_attention_module = CrossAttentionModule(self.image_pathway, self.text_pathway, self.cross_attention)
-
-
 
 
     def text_heatmap(self, text_t, image_t):
