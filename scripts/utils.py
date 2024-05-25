@@ -62,11 +62,10 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
         for name, submodule in model.named_children():
             if submodule == target:
                 if isinstance(model, nn.ModuleList):
-                    model[int(name)] = replacement
+                    model._modules[name] = replacement
                 elif isinstance(model, nn.Sequential):
-                    model[int(name)] = replacement
+                    model._modules[name] = replacement
                 else:
-                    print(3, replacement)
                     model.__setattr__(name, replacement)
                 return True
             elif len(list(submodule.named_children())) > 0:
@@ -76,7 +75,6 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
 
     if not replace_in(model, target, replacement):
         raise RuntimeError("Cannot substitute layer: Layer of type " + target.__class__.__name__ + " is not a child of given parent of type " + model.__class__.__name__)
-
     
 
 class CosSimilarity:
