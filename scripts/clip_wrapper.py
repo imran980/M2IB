@@ -6,7 +6,7 @@ import copy
 import torch
 import torch.nn as nn
 from functools import partial
-from scripts.utils import mySequential
+from scripts.utils import ImagePathway, TextPathway, CrossAttentionModule
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def permute_then_forward(self, x):
