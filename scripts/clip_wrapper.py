@@ -123,7 +123,7 @@ class CLIPEncoderWrapper(nn.Module):
 class ClipWrapper(nn.Module):
     def __init__(self, model):
         super().__init__()
-        self.cross_attention_module = CrossAttentionModule(dim_model)  # Initialize the CrossAttentionModule
+        self.cross_attention_module = CrossAttentionModule(nn.Module)  # Initialize the CrossAttentionModule
         self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype, self.cross_attention_module)
         self.text_model = text_encoder_wrapper(copy.deepcopy(model), self.cross_attention_module)
 
