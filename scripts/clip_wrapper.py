@@ -123,9 +123,22 @@ class CLIPEncoderWrapper(nn.Module):
 class ClipWrapper(nn.Module):
     def __init__(self, model):
         super().__init__()
-        self.cross_attention_module = CrossAttentionModule(nn.Module)  # Initialize the CrossAttentionModule
-        self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype, self.cross_attention_module)
-        self.text_model = text_encoder_wrapper(copy.deepcopy(model), self.cross_attention_module)
+        # Initialize the required components
+        self.vision_model = copy.deepcopy(model.visual)
+        self.text_model = copy.deepcopy(model)
+        self.information_bottleneck = InformationBottleneck(mean, std, device=device)
+        self.cross_attention = CrossAttentionLayer(dim_model=768)
+
+        # Create the image and text pathways
+        self.image_pathway = ImagePathway(self.vision_model.transformer.resblocks[-1], self.information_bottleneck, [self.cross_attention])
+        self.text_pathway = TextPathway(self.text_model.transformer.resblocks[-1], self.information_bottleneck, [self.cross_attention])
+
+        # Initialize the CrossAttentionModule
+        self.cross_attention_module = CrossAttentionModule(self.image_pathway, self.text_pathway, self.cross_attention)
+
+        # Wrap the models
+        self.vision_model = image_encoder_wrapper(self.vision_model, model.dtype, self.cross_attention_module)
+        self.text_model = text_encoder_wrapper(self.text_model, self.cross_attention_module)
 
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
         text_repr = self.text_model(x, emb_input=False, output_hidden_states=False)
