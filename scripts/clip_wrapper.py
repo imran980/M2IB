@@ -33,35 +33,35 @@ class VisionEmbeddings(nn.Module):
         return x
 
 class image_encoder_wrapper(nn.Module):
-    def __init__(self, model, dtype):
+    def __init__(self, model, dtype, cross_attention_module):
         super().__init__()
         self.transformer = model.transformer
-        self.embeddings = VisionEmbeddings(model.class_embedding,  model.conv1, model.positional_embedding, dtype)
+        self.embeddings = VisionEmbeddings(model.class_embedding, model.conv1, model.positional_embedding, dtype)
         self.ln_pre = model.ln_pre
         self.ln_post = model.ln_post
         self.proj = model.proj
         self.dtype = dtype
+        self.cross_attention_module = cross_attention_module
         for layer in self.transformer.resblocks:
             layer.forward = partial(permute_then_forward, layer)
 
-    def forward(self, x, output_hidden_states=False, emb_input = False):
+    def forward(self, x, text_repr, output_hidden_states=False, emb_input=False):
         if not emb_input:
             x = self.embeddings(x)
         x = self.ln_pre(x).to(self.dtype)
-        #x = x.permute(1, 0, 2)  # NLD -> LND
         hidden_states = [x.clone().detach()]
         for layer in self.transformer.resblocks:
             x = layer(x.to(self.dtype))
             if type(x) == tuple and len(x) == 1: x = x[0]
             hidden_states.append(x.clone().detach())
-        #x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_post(x[:, 0, :]).type(self.dtype)
         if self.proj is not None:
             x = x @ self.proj
+        cross_attended_image, _ = self.cross_attention_module(x, text_repr)
         if output_hidden_states:
-            return {'pooler_output':x, 'hidden_states':hidden_states}
+            return {'pooler_output': cross_attended_image, 'hidden_states': hidden_states}
         else:
-            return x
+            return cross_attended_image
 
 class TextEmbeddings(nn.Module):
     def __init__(self, token_embedding, positional_embedding, dtype):
@@ -76,37 +76,35 @@ class TextEmbeddings(nn.Module):
         return x
 
 class text_encoder_wrapper(nn.Module):
-    def __init__(self, model):
+    def __init__(self, model, cross_attention_module):
         super().__init__()
         self.transformer = model.transformer
         self.embeddings = TextEmbeddings(model.token_embedding, model.positional_embedding, model.dtype)
         self.ln_final = model.ln_final
         self.text_projection = model.text_projection
         self.dtype = model.dtype
+        self.cross_attention_module = cross_attention_module
         for layer in self.transformer.resblocks:
             layer.attn_mask = None
             layer.forward = partial(permute_then_forward, layer)
-        
-    
-    def forward(self, x, output_hidden_states=False, emb_input=False, other_repr=None):
+
+    def forward(self, x, image_repr, output_hidden_states=False, emb_input=False):
         maxidx = -1 #x.argmax(dim=-1) take features from the eot embedding (eot_token is the highest number in each sequence)
         if not emb_input:
             x = self.embeddings(x)
-        #x = x.permute(1, 0, 2)  # NLD -> LND
-        # Insert code to record hidden states
         hidden_states = [x.clone().detach()] # embedding output
         for layer in self.transformer.resblocks:
             x = layer(x.to(self.dtype))
             if type(x) == tuple and len(x) == 1: x = x[0]
             hidden_states.append(x.clone().detach())
-        #x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_final(x).type(self.dtype)
         x = x @ self.text_projection
         x = x[torch.arange(x.shape[0]), maxidx] @ self.text_projection
+        cross_attended_text, _ = self.cross_attention_module(x, image_repr)
         if output_hidden_states:
-            return {'pooler_output':x, 'hidden_states':hidden_states}
+            return {'pooler_output': cross_attended_text, 'hidden_states': hidden_states}
         else:
-            return x
+            return cross_attended_text
             
 class CLIPEncoderWrapper(nn.Module):
     def __init__(self, clip_model, layer_idx, dim_model):
@@ -125,21 +123,24 @@ class CLIPEncoderWrapper(nn.Module):
 class ClipWrapper(nn.Module):
     def __init__(self, model):
         super().__init__()
-        self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype).to(device)
-        self.text_model = text_encoder_wrapper(copy.deepcopy(model)).to(device)
-        #self.cross_attention_module = CrossAttentionModule(CrossAttentionLayer(dim_model=768))
-        self.cross_attention_module = CrossAttentionModule(self.image_pathway, self.text_pathway, CrossAttentionLayer(dim_model=768))
-        self.image_pathway = ImagePathway(self.vision_model.transformer.resblocks[-1], information_bottleneck, [])
-        self.text_pathway = TextPathway(self.text_model.transformer.resblocks[-1], information_bottleneck, [])
-
-        self.dtype = model.dtype
+        self.vision_model = image_encoder_wrapper(copy.deepcopy(model.visual), model.dtype)
+        self.text_model = text_encoder_wrapper(copy.deepcopy(model))
+        self.cross_attention_module = CrossAttentionModule()  # Initialize the CrossAttentionModule
 
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
-        return self.vision_model(x, output_hidden_states, emb_input)
+        text_repr = self.text_model(x, emb_input=False, output_hidden_states=False)
+        image_repr = self.vision_model(x, emb_input=False, output_hidden_states=False)
+        cross_attended_image, _ = self.cross_attention_module(image_repr, text_repr)
+        if output_hidden_states:
+            return {'pooler_output': cross_attended_image, 'hidden_states': []}
+        else:
+            return cross_attended_image
 
     def get_text_features(self, x, output_hidden_states=False, emb_input=False):
-        return self.text_model(x, output_hidden_states, emb_input)
-
-    def get_cross_attended_features(self, text_repr, image_repr):
-        cross_attended_image, cross_attended_text = self.cross_attention_module(image_repr, text_repr)
-        return cross_attended_image, cross_attended_text
+        text_repr = self.text_model(x, emb_input=False, output_hidden_states=False)
+        image_repr = self.vision_model(x, emb_input=False, output_hidden_states=False)
+        _, cross_attended_text = self.cross_attention_module(image_repr, text_repr)
+        if output_hidden_states:
+            return {'pooler_output': cross_attended_text, 'hidden_states': []}
+        else:
+            return cross_attended_text
