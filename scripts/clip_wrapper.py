@@ -120,39 +120,33 @@ class CLIPEncoderWrapper(nn.Module):
         cross_attended_text, cross_attended_image = self.cross_attention(text_repr, image_repr)
         return cross_attended_text, cross_attended_image
 
+
+from scripts.cross_attention import CrossAttentionLayer
+
 class ClipWrapper(nn.Module):
     def __init__(self, model):
         super().__init__()
-        # Initialize the required components
-        self.vision_model = copy.deepcopy(model.visual)
-        self.text_model = copy.deepcopy(model)
-        self.information_bottleneck = InformationBottleneck(mean, std, device=device)
-        self.cross_attention = CrossAttentionLayer(dim_model=768)
+        self.visual_model = model.visual
+        self.text_model = model
+        self.cross_attention = CrossAttentionLayer(dim_model=model.visual.embed_dim)
 
-        # Create the image and text pathways
-        self.image_pathway = ImagePathway(self.vision_model.transformer.resblocks[-1], self.information_bottleneck, [self.cross_attention])
-        self.text_pathway = TextPathway(self.text_model.transformer.resblocks[-1], self.information_bottleneck, [self.cross_attention])
-
-        # Initialize the CrossAttentionModule
-        self.cross_attention_module = CrossAttentionModule(self.image_pathway, self.text_pathway, self.cross_attention)
-
-        # Wrap the models
-        self.vision_model = image_encoder_wrapper(self.vision_model, model.dtype, self.cross_attention_module)
-        self.text_model = text_encoder_wrapper(self.text_model, self.cross_attention_module)
+        # Wrap the models with custom encoders
+        self.vision_model = image_encoder_wrapper(self.visual_model, model.dtype, self.cross_attention)
+        self.text_model = text_encoder_wrapper(self.text_model, self.cross_attention)
 
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
-        text_repr = self.text_model(x, emb_input=False, output_hidden_states=False)
-        image_repr = self.vision_model(x, emb_input=False, output_hidden_states=False)
-        cross_attended_image, _ = self.cross_attention_module(image_repr, text_repr)
+        text_repr = self.text_model(x, emb_input=emb_input, output_hidden_states=False)
+        image_repr = self.vision_model(x, emb_input=emb_input, output_hidden_states=False)
+        cross_attended_image, _ = self.cross_attention(image_repr, text_repr)
         if output_hidden_states:
             return {'pooler_output': cross_attended_image, 'hidden_states': []}
         else:
             return cross_attended_image
 
     def get_text_features(self, x, output_hidden_states=False, emb_input=False):
-        text_repr = self.text_model(x, emb_input=False, output_hidden_states=False)
-        image_repr = self.vision_model(x, emb_input=False, output_hidden_states=False)
-        _, cross_attended_text = self.cross_attention_module(image_repr, text_repr)
+        text_repr = self.text_model(x, emb_input=emb_input, output_hidden_states=False)
+        image_repr = self.vision_model(x, emb_input=emb_input, output_hidden_states=False)
+        _, cross_attended_text = self.cross_attention(image_repr, text_repr)
         if output_hidden_states:
             return {'pooler_output': cross_attended_text, 'hidden_states': []}
         else:
