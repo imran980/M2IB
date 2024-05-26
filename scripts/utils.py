@@ -9,49 +9,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scripts.cross_attention import CrossAttentionLayer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-import types
 
 def normalize(x):
     return (x - x.min()) / (x.max() - x.min())
 
-
-class ImagePathway(nn.Module):
-    def __init__(self, original_layer, bottleneck, other_layers):
-        super(ImagePathway, self).__init__()
-        self.sequential = nn.Sequential(
-            original_layer,
-            *other_layers,
-            bottleneck
-        )
-
-    def forward(self, image_repr):
-        return self.sequential(image_repr)
-
-class TextPathway(nn.Module):
-    def __init__(self, original_layer, bottleneck, other_layers):
-        super(TextPathway, self).__init__()
-        self.sequential = nn.Sequential(
-            original_layer,
-            *other_layers,
-            bottleneck
-        )
-
-    def forward(self, text_repr):
-        return self.sequential(text_repr)
-
-class CrossAttentionModule(nn.Module):
-    def __init__(self, image_pathway, text_pathway, cross_attention):
-        super(CrossAttentionModule, self).__init__()
-        self.image_pathway = image_pathway
-        self.text_pathway = text_pathway
-        self.cross_attention = cross_attention
-
-    def forward(self, image_repr, text_repr):
-        image_repr = self.image_pathway(image_repr)
-        text_repr = self.text_pathway(text_repr)
-        cross_attended_image, cross_attended_text = self.cross_attention(text_repr, image_repr)
-        # Merge or combine the cross-attended representations as needed
-        return cross_attended_image, cross_attended_text
+class mySequential(nn.Sequential):
+    def forward(self, *input, **kwargs):
+        for module in self._modules.values():
+            if type(input) == tuple:
+                input = module(*input)
+            else:
+                input = module(input)
+        return input
 
 def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     """
@@ -62,10 +31,11 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
         for name, submodule in model.named_children():
             if submodule == target:
                 if isinstance(model, nn.ModuleList):
-                    model._modules[name] = replacement
+                    model[int(name)] = replacement
                 elif isinstance(model, nn.Sequential):
-                    model._modules[name] = replacement
+                    model[int(name)] = replacement
                 else:
+                    print(3, replacement)
                     model.__setattr__(name, replacement)
                 return True
             elif len(list(submodule.named_children())) > 0:
@@ -75,7 +45,7 @@ def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
 
     if not replace_in(model, target, replacement):
         raise RuntimeError("Cannot substitute layer: Layer of type " + target.__class__.__name__ + " is not a child of given parent of type " + model.__class__.__name__)
-    
+
 
 class CosSimilarity:
     """ Target function """
@@ -116,4 +86,3 @@ def text_transform(t):
     if t.size(1) == 1: t = t.permute(1,0,2)
     result = t[:, :  , :].reshape(t.size(0), 1, -1, t.size(2))
     return result
-
