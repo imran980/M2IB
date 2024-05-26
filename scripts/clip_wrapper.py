@@ -33,19 +33,19 @@ class VisionEmbeddings(nn.Module):
         return x
 
 class image_encoder_wrapper(nn.Module):
-    def __init__(self, model, dtype, cross_attention_module):
+    def __init__(self, model, dtype, cross_attention):
         super().__init__()
         self.transformer = model.transformer
-        self.embeddings = VisionEmbeddings(model.class_embedding, model.conv1, model.positional_embedding, dtype)
+        self.embeddings = model.embeddings
         self.ln_pre = model.ln_pre
         self.ln_post = model.ln_post
         self.proj = model.proj
         self.dtype = dtype
-        self.cross_attention_module = cross_attention_module
+        self.cross_attention = cross_attention
         for layer in self.transformer.resblocks:
             layer.forward = partial(permute_then_forward, layer)
 
-    def forward(self, x, text_repr, output_hidden_states=False, emb_input=False):
+    def forward(self, x, emb_input=False, output_hidden_states=False):
         if not emb_input:
             x = self.embeddings(x)
         x = self.ln_pre(x).to(self.dtype)
@@ -57,7 +57,7 @@ class image_encoder_wrapper(nn.Module):
         x = self.ln_post(x[:, 0, :]).type(self.dtype)
         if self.proj is not None:
             x = x @ self.proj
-        cross_attended_image, _ = self.cross_attention_module(x, text_repr)
+        cross_attended_image, _ = self.cross_attention(x, text_repr)
         if output_hidden_states:
             return {'pooler_output': cross_attended_image, 'hidden_states': hidden_states}
         else:
@@ -76,14 +76,14 @@ class TextEmbeddings(nn.Module):
         return x
 
 class text_encoder_wrapper(nn.Module):
-    def __init__(self, model, cross_attention_module):
+    def __init__(self, model, cross_attention):
         super().__init__()
         self.transformer = model.transformer
         self.embeddings = TextEmbeddings(model.token_embedding, model.positional_embedding, model.dtype)
         self.ln_final = model.ln_final
         self.text_projection = model.text_projection
         self.dtype = model.dtype
-        self.cross_attention_module = cross_attention_module
+        self.cross_attention = cross_attention
         for layer in self.transformer.resblocks:
             layer.attn_mask = None
             layer.forward = partial(permute_then_forward, layer)
@@ -100,7 +100,7 @@ class text_encoder_wrapper(nn.Module):
         x = self.ln_final(x).type(self.dtype)
         x = x @ self.text_projection
         x = x[torch.arange(x.shape[0]), maxidx] @ self.text_projection
-        cross_attended_text, _ = self.cross_attention_module(x, image_repr)
+        cross_attended_text, _ = self.cross_attention(x, image_repr)
         if output_hidden_states:
             return {'pooler_output': cross_attended_text, 'hidden_states': hidden_states}
         else:
@@ -127,11 +127,12 @@ class ClipWrapper(nn.Module):
     def __init__(self, model):
         super().__init__()
         self.visual_model = model.visual
-        self.text_model = model
-        self.cross_attention = CrossAttentionLayer(dim_model=model.visual.embed_dim)
+        self.text_model = model.transformer
+        self.dim_model = model.visual.proj.weight.shape[1]
+        self.cross_attention = CrossAttentionLayer(self.dim_model)
 
         # Wrap the models with custom encoders
-        self.vision_model = image_encoder_wrapper(self.visual_model, model.dtype, self.cross_attention)
+        self.vision_model = image_encoder_wrapper(self.visual_model, model.visual.dtype, self.cross_attention)
         self.text_model = text_encoder_wrapper(self.text_model, self.cross_attention)
 
     def get_image_features(self, x, output_hidden_states=False, emb_input=False):
