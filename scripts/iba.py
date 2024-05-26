@@ -7,8 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
-#from scripts.utils import replace_layer, normalize, mySequential
-from scripts.utils import replace_layer, normalize, ImagePathway, TextPathway, CrossAttentionModule
+from scripts.utils import replace_layer, normalize, mySequential
 from scripts.cross_attention import CrossAttentionLayer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 import pdb
@@ -154,9 +153,7 @@ class IBAInterpreter:
         self.lr = lr
         self.train_steps = steps
         self.cross_attention = CrossAttentionLayer(dim_model)
-        self.image_pathway = ImagePathway(estim.get_layer(), InformationBottleneck(mean, std, device=device), [self.cross_attention])
-        self.text_pathway = TextPathway(estim.get_layer(), InformationBottleneck(mean, std, device=device), [self.cross_attention])
-        self.cross_attention_module = CrossAttentionModule(self.image_pathway, self.text_pathway, self.cross_attention)
+
 
 
     def text_heatmap(self, text_t, image_t):
@@ -195,16 +192,43 @@ class IBAInterpreter:
 
         
     def _run_text_training(self, text_t, image_t):
-        replace_layer(self.model.text_model, self.original_layer, self.text_pathway)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
-        replace_layer(self.model.text_model, self.text_pathway, self.original_layer)
+        # Get text and image representations from the model
+        text_repr = self.model.get_text_features(text_t)
+        image_repr = self.model.get_image_features(image_t)
+
+        # Apply cross-attention
+        cross_attended_text, cross_attended_image = self.cross_attention(text_repr, image_repr)
+
+        # Replace the original layer with the sequential module
+        replace_layer(self.model.text_model, self.original_layer, self.sequential)
+
+        # Train the bottleneck with cross-attended representations
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_text, cross_attended_image)
+
+        # Restore the original layer
+        replace_layer(self.model.text_model, self.sequential, self.original_layer)
+
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _run_vision_training(self, text_t, image_t):
-        replace_layer(self.model.vision_model, self.original_layer, self.image_pathway)
-        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
-        replace_layer(self.model.vision_model, self.image_pathway, self.original_layer)
+        # Get text and image representations from the model
+        text_repr = self.model.get_text_features(text_t)
+        image_repr = self.model.get_image_features(image_t)
+
+        # Apply cross-attention
+        cross_attended_text, cross_attended_image = self.cross_attention(text_repr, image_repr)
+
+        # Replace the original layer with the sequential module
+        replace_layer(self.model.vision_model, self.original_layer, self.sequential)
+
+        # Train the bottleneck with cross-attended representations
+        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_text, cross_attended_image)
+
+        # Restore the original layer
+        replace_layer(self.model.vision_model, self.sequential, self.original_layer)
+
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
+
 
     def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
         batch_text = text_t.expand(self.batch_size, *text_t.shape[1:])
