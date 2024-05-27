@@ -52,25 +52,25 @@ def get_compression_estimator(var, layer, features):
     return estimator
 
 
-def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
+def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True, dim_model=768):
     features = extract_feature_map(model.text_model, layer_idx, text_t)
     layer = extract_bert_layer(model.text_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
 
     # Create the sequential module with the target layer, CrossAttentionLayer, and InformationBottleneck
-    cross_attention_layer = CrossAttentionLayer(model.dim_model)
+    cross_attention_layer = CrossAttentionLayer(dim_model)
     sequential = mySequential(layer, cross_attention_layer, compression_estimator.bottleneck)
 
     reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
     return reader.text_heatmap(text_t, image_t, sequential)
 
-def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
+def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True, dim_model=768):
     features = extract_feature_map(model.vision_model, layer_idx, image_t)
     layer = extract_bert_layer(model.vision_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
 
     # Create the sequential module with the target layer, CrossAttentionLayer, and InformationBottleneck
-    cross_attention_layer = CrossAttentionLayer(model.dim_model)
+    cross_attention_layer = CrossAttentionLayer(dim_model)
     sequential = mySequential(layer, cross_attention_layer, compression_estimator.bottleneck)
 
     reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
