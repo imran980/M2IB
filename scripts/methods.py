@@ -4,7 +4,7 @@ Based on code of https://github.com/bazingagin/IBA, https://github.com/Bioroboti
 
 
 import numpy as np
-from scripts.iba import IBAInterpreter, Estimator
+from scripts.iba import IBAInterpreter, Estimator, InformationBottleneck
 import clip
 import copy
 import torch 
