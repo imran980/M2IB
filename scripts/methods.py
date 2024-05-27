@@ -10,6 +10,7 @@ import copy
 import torch 
 from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
 from scripts.cross_attention import CrossAttentionLayer
+from scripts.utils import mySequential
 
 def extract_module(model, module_type):
     """
