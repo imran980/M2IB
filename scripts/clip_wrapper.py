@@ -24,6 +24,9 @@ class VisionEmbeddings(nn.Module):
         self.dtype = dtype
 
     def forward(self, x):
+        print("Inside VisionEmbeddings embeddings-------------------")
+        print("datatype of x-------------:", type(x))
+        print("sample of x-------------:", x)
         x = self.patch_embedding(x.to(self.dtype))  # shape = [*, width, grid, grid]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
@@ -70,6 +73,9 @@ class TextEmbeddings(nn.Module):
         self.dtype = dtype
 
     def forward(self, text):
+        print("Inside text embeddings-------------------")
+        print("datatype of text-------------:", type(text))
+        print("sample of text-------------:", text)
         x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
         x = x + self.positional_embedding.type(self.dtype)[:x.shape[1], :]#(1,50,512)
         return x
