@@ -124,4 +124,5 @@ class ClipWrapper(nn.Module):
         return self.vision_model(x, output_hidden_states, emb_input)
 
     def get_text_features(self, x, output_hidden_states=False, emb_input=False):
+        print("Inside get_text_features--------:", x)
         return self.text_model(x, output_hidden_states, emb_input)
