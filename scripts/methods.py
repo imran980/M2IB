@@ -54,6 +54,9 @@ def get_compression_estimator(var, layer, features):
 
 
 def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True, dim_model=768):
+    print("Inside text_heatmap_iba-------------------")
+    print("datatype of text_t-------------:", type(text_t))
+    print("sample of text_t-------------:", text_t)
     features = extract_feature_map(model.text_model, layer_idx, text_t)
     layer = extract_bert_layer(model.text_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
