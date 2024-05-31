@@ -11,10 +11,12 @@ class CrossAttentionLayer(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, text_repr, image_repr):
-        print("Dimension of text----------:", text_repr.shape)
-        print("Dimension of image----------:", image_repr.shape)
-        batch_size, sequence_length, embedding_size = text_repr.size()
-        _, _, embedding_size = image_repr.size()
+        batch_size, embedding_size = text_repr.size()
+        _, embedding_size = image_repr.size()
+
+        # Add a sequence dimension of size 1 to both tensors
+        text_repr = text_repr.unsqueeze(1)
+        image_repr = image_repr.unsqueeze(1)
 
         # Text cross-attention
         text_query = self.query(text_repr)
@@ -31,5 +33,9 @@ class CrossAttentionLayer(nn.Module):
         cross_attention_scores = torch.matmul(image_query, text_key.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.dim_model, dtype=torch.float))
         cross_attention_weights = self.softmax(cross_attention_scores)
         cross_attended_image = torch.matmul(cross_attention_weights, text_value)
+
+        # Remove the sequence dimension of size 1
+        cross_attended_text = cross_attended_text.squeeze(1)
+        cross_attended_image = cross_attended_image.squeeze(1)
 
         return cross_attended_text, cross_attended_image
