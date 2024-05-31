@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
-from scripts.cross_attention import CrossAttentionLayer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def normalize(x):
@@ -22,31 +21,30 @@ class mySequential(nn.Sequential):
                 input = module(input)
         return input
 
-def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module, attended_features=None):
+def replace_layer(model: nn.Module, target: nn.Module, replacement: nn.Module):
     """
     Replace a given module within a parent module with some third module
     Useful for injecting new layers in an existing model.
     """
-    def replace_in(model: nn.Module, target: nn.Module, replacement: nn.Module, attended_features=None):
+    def replace_in(model: nn.Module, target: nn.Module, replacement: nn.Module):
         for name, submodule in model.named_children():
             if submodule == target:
                 if isinstance(model, nn.ModuleList):
                     model[int(name)] = replacement
                 elif isinstance(model, nn.Sequential):
-                    if attended_features is not None:
-                        model[int(name)] = nn.Sequential(replacement, attended_features)
-                    else:
-                        model[int(name)] = replacement
+                    model[int(name)] = replacement
                 else:
+                    print(3, replacement)
                     model.__setattr__(name, replacement)
                 return True
             elif len(list(submodule.named_children())) > 0:
-                if replace_in(submodule, target, replacement, attended_features):
+                if replace_in(submodule, target, replacement):
                     return True
         return False
 
-    if not replace_in(model, target, replacement, attended_features):
+    if not replace_in(model, target, replacement):
         raise RuntimeError("Cannot substitute layer: Layer of type " + target.__class__.__name__ + " is not a child of given parent of type " + model.__class__.__name__)
+
 
 class CosSimilarity:
     """ Target function """
