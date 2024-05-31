@@ -23,16 +23,12 @@ class CrossAttentionLayer(nn.Module):
         text_repr = text_repr.unsqueeze(1)
         image_repr = image_repr.unsqueeze(1)
 
-        query = self.query.to(self.query.weight.device)
-        key = self.key.to(self.query.weight.device)
-        value = self.value.to(self.query.weight.device)
-        
         # Text cross-attention
         print("CA Dimensions of text_t------:",  text_repr.shape)
         print("CA Dimensions of image_t------:",  image_repr.shape)
-        text_query = query(text_repr)
-        image_key = key(image_repr)
-        image_value = value(image_repr)
+        text_query = self.query(text_repr)
+        image_key = self.key(image_repr)
+        image_value = self.value(image_repr)
         
         cross_attention_scores = torch.matmul(text_query, image_key.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.dim_model, dtype=torch.float))
         cross_attention_weights = self.softmax(cross_attention_scores)
