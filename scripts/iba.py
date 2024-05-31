@@ -172,7 +172,11 @@ class IBAInterpreter:
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
+        print("train bottleneck Dimensions of text_t------:",  text_t.shape)
+        print("train bottleneck Dimensions of image_t------:",  image_t.shape)
         batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
+        print("train bottleneck Dimensions of batch[0]------:",  batch[0].shape)
+        print("train bottleneck Dimensions of batch[1]------:",  batch[1].shape)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         # Reset from previous run or modifications
         self.bottleneck.reset_alpha()
@@ -182,6 +186,8 @@ class IBAInterpreter:
                       disable=not self.progbar):
             optimizer.zero_grad()
             out = self.model.get_text_features(batch[0]), self.model.get_image_features(batch[1])
+            print("train bottleneck Dimensions of out[0]------:",  out[0].shape)
+            print("train bottleneck Dimensions of out[1]------:",  out[1].shape)
             attended_image, attended_text = self.cross_attention(out[1], out[0])
             loss_c, loss_f, loss_t = self.calc_loss(outputs=attended_text, labels=attended_image)
             loss_t.backward()
