@@ -10,7 +10,6 @@ from tqdm import tqdm
 from scripts.utils import replace_layer, normalize, mySequential
 from scripts.cross_attention import CrossAttentionLayer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-import pdb
 
 class Estimator:
     """
@@ -120,23 +119,12 @@ class InformationBottleneck(nn.Module):
         return self.alpha
 
     def forward(self, x, **kwargs):
-        #print("forward shape[0]--------------------------:", x.shape[0])
-        #print("forward shape[1]--------------------------:", x.shape[1])
-        #print("Alpha Shape--------------:", self.alpha.shape)
-        #print("Alpha Contents-----------------:", self.alpha.data)
-        #print("x shape--------------------------:", x.shape)
         lamb = self.sigmoid(self.alpha)
-        #print("lamb1----------------------------:", lamb)
         lamb = lamb.expand(x.shape[0], x.shape[1], -1)
-        #print("lamb2----------------------------:", lamb)
         masked_mu = x * lamb
         masked_var = (1-lamb)**2
-        #print("forward masked_mu--------------------------:", masked_mu)
-        #print("forward masked_var-----------------------:", masked_var)
         self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
         t = self._sample_t(masked_mu, masked_var)
-        #print("forward t--------------------------:", t)
-        
         return (t,)
 
 
@@ -152,107 +140,53 @@ class IBAInterpreter:
         self.progbar = progbar
         self.lr = lr
         self.train_steps = steps
+        self.bottleneck = InformationBottleneck(estim.mean(), estim.std(), device=self.device)
+        self.sequential = mySequential(self.original_layer, self.bottleneck)
         self.cross_attention = CrossAttentionLayer(dim_model)
 
-
-
     def text_heatmap(self, text_t, image_t):
-        saliency, loss_c, loss_f, loss_t = self._run_text_training(text_t, image_t)     
+        saliency, loss_c, loss_f, loss_t = self._run_text_training(text_t, image_t)
         saliency = torch.nansum(saliency, -1).cpu().detach().numpy()
         saliency = normalize(saliency)
         return normalize(saliency)
-
+    
     def vision_heatmap(self, text_t, image_t):
-        #print("vision_heatmap text_t------------------------:", text_t)
-        #print("vision_heatmap image_t------------------------:", image_t)
-        #print("vision_heatmap text_t------------------------:", text_t.shape)
-        #print("vision_heatmap image_t------------------------:", image_t.shape)
         saliency, loss_c, loss_f, loss_t = self._run_vision_training(text_t, image_t)
-        #print("vision_heatmap vision training--------------------", saliency, loss_c, loss_f, loss_t)
-        saliency = torch.nansum(saliency, -1)[1:]  # Discard the first because it's the CLS token
+        saliency = torch.nansum(saliency, -1)[1:] # Discard the first because it's the CLS token
         dim = int(saliency.numel() ** 0.5)
         saliency = saliency.reshape(1, 1, dim, dim)
         saliency = torch.nn.functional.interpolate(saliency, size=224, mode='bilinear')
         saliency = saliency.squeeze().cpu().detach().numpy()
         return normalize(saliency)
 
-    def vision_heatmap(self, text_t, image_t):
-        #print("vision_heatmap text_t------------------------:", text_t)
-        #print("vision_heatmap image_t------------------------:", image_t)
-        #print("vision_heatmap text_t------------------------:", text_t.shape)
-        #print("vision_heatmap image_t------------------------:", image_t.shape)
-        saliency, loss_c, loss_f, loss_t = self._run_vision_training(text_t, image_t)
-        #print("vision_heatmap vision training--------------------", saliency, loss_c, loss_f, loss_t)
-        saliency = torch.nansum(saliency, -1)[1:]  # Discard the first because it's the CLS token
-        dim = int(saliency.numel() ** 0.5)
-        saliency = saliency.reshape(1, 1, dim, dim)
-        saliency = torch.nn.functional.interpolate(saliency, size=224, mode='bilinear')
-        saliency = saliency.squeeze().cpu().detach().numpy()
-        return normalize(saliency)
-
-        
     def _run_text_training(self, text_t, image_t):
-        # Get text and image representations from the model
-        text_repr = self.model.get_text_features(text_t)
-        image_repr = self.model.get_image_features(image_t)
-
-        # Apply cross-attention
-        cross_attended_text, cross_attended_image = self.cross_attention(text_repr, image_repr)
-
-        # Replace the original layer with the sequential module
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
-
-        # Train the bottleneck with cross-attended representations
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_text, cross_attended_image)
-
-        # Restore the original layer
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
-
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-
+    
     def _run_vision_training(self, text_t, image_t):
-        # Get text and image representations from the model
-        text_repr = self.model.get_text_features(text_t)
-        image_repr = self.model.get_image_features(image_t)
-
-        # Apply cross-attention
-        cross_attended_text, cross_attended_image = self.cross_attention(text_repr, image_repr)
-
-        # Replace the original layer with the sequential module
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-
-        # Train the bottleneck with cross-attended representations
-        loss_c, loss_f, loss_t = self._train_bottleneck(cross_attended_text, cross_attended_image)
-
-        # Restore the original layer
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
-
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
-
 
     def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
-        batch_text = text_t.expand(self.batch_size, *text_t.shape[1:])
-        batch_image = image_t.expand(self.batch_size, *image_t.shape[1:])
-
+        batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
+        # Reset from previous run or modifications
         self.bottleneck.reset_alpha()
+        # Train
         self.model.eval()
-
-        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
+        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck",
+                      disable=not self.progbar):
             optimizer.zero_grad()
-
-            text_repr = self.model.get_text_features(batch_text)
-            image_repr = self.model.get_image_features(batch_image)
-
-            cross_attended_image, cross_attended_text = self.cross_attention_module(image_repr, text_repr)
-
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=cross_attended_image, labels=cross_attended_text)
+            out = self.model.get_text_features(batch[0]), self.model.get_image_features(batch[1])
+            attended_image, attended_text = self.cross_attention(out[1], out[0])
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=attended_text, labels=attended_image)
             loss_t.backward()
             optimizer.step(closure=None)
-
-        return loss_c, loss_f, loss_t
-    
-       
+        return loss_c, loss_f, loss_t 
 
     def calc_loss(self, outputs, labels):
         """ Calculate the combined loss expression for optimization of lambda """
