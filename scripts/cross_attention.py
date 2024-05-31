@@ -11,6 +11,8 @@ class CrossAttentionLayer(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, text_repr, image_repr):
+        print("Dimension of text----------:", text_repr.shape)
+        print("Dimension of image----------:", image_repr.shape)
         batch_size, sequence_length, embedding_size = text_repr.size()
         _, _, embedding_size = image_repr.size()
 
