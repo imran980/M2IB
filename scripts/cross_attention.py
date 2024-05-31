@@ -35,9 +35,9 @@ class CrossAttentionLayer(nn.Module):
         cross_attended_text = torch.matmul(cross_attention_weights, image_value)
 
         # Image cross-attention
-        image_query = query(image_repr)
-        text_key = key(text_repr)
-        text_value = value(text_repr)
+        image_query = self.query(image_repr)
+        text_key = self.key(text_repr)
+        text_value = self.value(text_repr)
         cross_attention_scores = torch.matmul(image_query, text_key.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.dim_model, dtype=torch.float))
         cross_attention_weights = self.softmax(cross_attention_scores)
         cross_attended_image = torch.matmul(cross_attention_weights, text_value)
