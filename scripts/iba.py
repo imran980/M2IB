@@ -10,7 +10,7 @@ from tqdm import tqdm
 from scripts.utils import replace_layer, normalize, mySequential
 from scripts.cross_attention import CrossAttentionLayer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-np.random.seed(42)
+# np.random.seed(42)
 class Estimator:
     """
     Useful to calculate the empirical mean and variance of intermediate feature maps.
@@ -129,7 +129,7 @@ class InformationBottleneck(nn.Module):
 
 
 class IBAInterpreter:
-    def __init__(self, model, estim: Estimator, beta, steps=20, lr=1, batch_size=20, progbar=False, dim_model=512):
+    def __init__(self, model, estim: Estimator, beta, steps=10, lr=1, batch_size=10, progbar=False, dim_model=512):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
         self.original_layer = estim.get_layer()
