@@ -194,9 +194,24 @@ class IBAInterpreter:
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t 
 
-    def calc_loss(self, outputs, labels):
-        """ Calculate the combined loss expression for optimization of lambda """
+    import torch.nn.functional as F
+
+    def calc_loss(self, outputs, labels, temperature=0.07):
+        """
+        Calculate the combined loss expression for optimization of lambda
+        Inputs:
+            outputs: attended text features
+            labels: attended image features
+            temperature: temperature parameter for the InfoNCE loss
+        """
         compression_term = self.bottleneck.buffer_capacity.mean()
-        fitting_term = self.fitting_estimator(outputs, labels).mean()
-        total =  self.beta * compression_term - fitting_term
-        return compression_term, fitting_term, total
+    
+        # InfoNCE loss
+        outputs = F.normalize(outputs, dim=-1)
+        labels = F.normalize(labels, dim=-1)
+        logits = outputs @ labels.T / temperature
+        labels = torch.arange(logits.shape[0], device=logits.device)
+        loss_f = F.cross_entropy(logits, labels)
+    
+        total = self.beta * compression_term - loss_f
+        return compression_term, loss_f, total
