@@ -196,7 +196,7 @@ class IBAInterpreter:
 
     import torch.nn.functional as F
 
-    def calc_loss(self, outputs, labels, temperature=0.01):
+    def calc_loss(self, outputs, labels, temperature=0.1):
         """
         Calculate the combined loss expression for optimization of lambda
         Inputs:
