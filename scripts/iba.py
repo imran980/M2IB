@@ -129,7 +129,7 @@ class InformationBottleneck(nn.Module):
 
 
 class IBAInterpreter:
-    def __init__(self, model, estim: Estimator, beta, steps=20, lr=09, batch_size=20, progbar=False, dim_model=512):
+    def __init__(self, model, estim: Estimator, beta, steps=20, lr=0.9, batch_size=20, progbar=False, dim_model=512):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
         self.original_layer = estim.get_layer()
