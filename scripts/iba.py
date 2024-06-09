@@ -189,31 +189,29 @@ class IBAInterpreter:
             print("train bottleneck Dimensions of out[0]------:",  out[0].shape)
             print("train bottleneck Dimensions of out[1]------:",  out[1].shape)
             attended_image, attended_text = self.cross_attention(out[1], out[0])
-            loss_c, loss_f, loss_contrastive, loss_t = self.calc_loss(outputs=attended_text, labels=attended_image)
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=attended_text, labels=attended_image)
             loss_t.backward()
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_contrastive, loss_t 
 
     import torch.nn.functional as F
 
-    def calc_loss(self, outputs, labels, temperature=0.07, contrastive_weight=0.1):
+    def calc_loss(self, outputs, labels, temperature=0.07):
         """
-        Calculate the combined loss expression with an auxiliary contrastive loss term.
+        Calculate the combined loss expression for optimization of lambda
         Inputs:
             outputs: attended text features
             labels: attended image features
             temperature: temperature parameter for the InfoNCE loss
-            contrastive_weight: weight for the contrastive loss term
         """
         compression_term = self.bottleneck.buffer_capacity.mean()
-        fitting_term = self.fitting_estimator(outputs, labels).mean()
     
         # InfoNCE loss
         outputs = F.normalize(outputs, dim=-1)
         labels = F.normalize(labels, dim=-1)
         logits = outputs @ labels.T / temperature
         labels = torch.arange(logits.shape[0], device=logits.device)
-        loss_contrastive = F.cross_entropy(logits, labels)
+        loss_f = F.cross_entropy(logits, labels)
     
-        total = self.beta * compression_term - fitting_term + contrastive_weight * loss_contrastive
-        return compression_term, fitting_term, loss_contrastive, total
+        total = self.beta * compression_term - loss_f
+        return compression_term, loss_f, total
