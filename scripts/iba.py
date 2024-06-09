@@ -211,7 +211,7 @@ class IBAInterpreter:
         labels = torch.arange(logits.shape[0], device=logits.device)
         loss_f = F.cross_entropy(logits, labels)
 
-        print("beta value-------------------------:", beta)
+        print("beta value-------------------------:", self.beta)
         total = self.beta * compression_term + loss_f
         print("compression term-----:", compression_term)
         print("loss_f-----:", loss_f)
