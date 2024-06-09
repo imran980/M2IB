@@ -98,40 +98,43 @@ class InformationBottleneck(nn.Module):
         self.n_components = n_components
         self.std = torch.tensor(std, dtype=torch.float, device=self.device, requires_grad=False)
         self.mean = torch.tensor(mean, dtype=torch.float, device=self.device, requires_grad=False)
-    
-        # Initialize GMM parameters based on the shapes of mean and std
-        if len(self.mean.shape) == 1:
-            self.mixture_weights = nn.Parameter(torch.full((1, n_components), fill_value=1/n_components, device=self.device))
-            self.mixture_means = nn.Parameter(self.mean.unsqueeze(1).repeat(1, n_components, 1), requires_grad=True)
-            self.mixture_precisions = nn.Parameter(torch.ones_like(self.mixture_means) / (self.std.unsqueeze(1) ** 2), requires_grad=True)
-        else:
-            self.mixture_weights = nn.Parameter(torch.full((1, n_components, *self.mean.shape[1:]), fill_value=1/n_components, device=self.device))
-            self.mixture_means = nn.Parameter(self.mean.unsqueeze(2).repeat(1, 1, n_components, *[1] * (len(self.mean.shape) - 1)), requires_grad=True)
-            self.mixture_precisions = nn.Parameter(torch.ones_like(self.mixture_means) / (self.std.unsqueeze(2) ** 2), requires_grad=True)
-    
+
+        # Initialize GMM parameters
+        self.mixture_weights = nn.Parameter(torch.full((1, n_components), fill_value=1/n_components, device=self.device))
+        self.mixture_means = nn.Parameter(self.mean.unsqueeze(1).repeat(1, n_components, 1), requires_grad=True)
+        self.mixture_precisions = nn.Parameter(torch.ones_like(self.mixture_means) / (self.std.unsqueeze(1) ** 2), requires_grad=True)
+
         self.buffer_capacity = None
 
     def forward(self, x, **kwargs):
-        batch_shape = x.shape[:-1]  # Get the batch dimensions
-        feature_dim = x.shape[-1]  # Get the feature dimension
-        batch_size = torch.prod(torch.tensor(batch_shape))  # Calculate the total batch size
-
-        # Reshape x to (batch_size, feature_dim)
+        batch_shape = x.shape[:-1]
+        feature_dim = x.shape[-1]
+        batch_size = torch.prod(torch.tensor(batch_shape))
         x = x.view(batch_size, feature_dim)
 
         # Compute GMM parameters
-        gmm = dist.GaussianMixture(self.mixture_weights, self.mixture_means, self.mixture_precisions.reciprocal())
+        mixture_weights = self.mixture_weights.expand(batch_size, self.n_components)
+        mixture_means = self.mixture_means.expand(batch_size, self.n_components, feature_dim)
+        mixture_precisions = self.mixture_precisions.expand(batch_size, self.n_components, feature_dim)
 
         # Sample from the GMM
-        z = gmm.sample((batch_size,)).view(batch_size, -1)
+        z = torch.zeros_like(mixture_means)
+        for i in range(self.n_components):
+            z[:, i] = dist.Normal(mixture_means[:, i], mixture_precisions[:, i].reciprocal().sqrt()).sample()
+        z = torch.sum(z * mixture_weights.unsqueeze(-1), dim=1)
 
         # Compute KL divergence between GMM and standard normal
-        self.buffer_capacity = gmm.log_prob(z) - dist.Normal(torch.zeros_like(z), torch.ones_like(z)).log_prob(z)
+        self.buffer_capacity = self._compute_kl_divergence(z, mixture_weights, mixture_means, mixture_precisions)
 
         # Reshape z back to the original batch dimensions
         z = z.view(*batch_shape, -1)
 
         return z
+
+    def _compute_kl_divergence(self, z, mixture_weights, mixture_means, mixture_precisions):
+        log_prob_z = torch.sum(mixture_weights.unsqueeze(-1) * dist.Normal(mixture_means, mixture_precisions.reciprocal().sqrt()).log_prob(z.unsqueeze(1)), dim=1)
+        log_prob_standard_normal = dist.Normal(torch.zeros_like(z), torch.ones_like(z)).log_prob(z)
+        return log_prob_z - log_prob_standard_normal
 
 
 class IBAInterpreter:
