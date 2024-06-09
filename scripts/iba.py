@@ -112,17 +112,25 @@ class InformationBottleneck(nn.Module):
         self.buffer_capacity = None
 
     def forward(self, x, **kwargs):
-        batch_size, feature_dim = x.shape
-        
+        batch_shape = x.shape[:-1]  # Get the batch dimensions
+        feature_dim = x.shape[-1]  # Get the feature dimension
+        batch_size = torch.prod(torch.tensor(batch_shape))  # Calculate the total batch size
+
+        # Reshape x to (batch_size, feature_dim)
+        x = x.view(batch_size, feature_dim)
+
         # Compute GMM parameters
         gmm = dist.GaussianMixture(self.mixture_weights, self.mixture_means, self.mixture_precisions.reciprocal())
-        
+
         # Sample from the GMM
         z = gmm.sample((batch_size,)).view(batch_size, -1)
-        
+
         # Compute KL divergence between GMM and standard normal
         self.buffer_capacity = gmm.log_prob(z) - dist.Normal(torch.zeros_like(z), torch.ones_like(z)).log_prob(z)
-        
+
+        # Reshape z back to the original batch dimensions
+        z = z.view(*batch_shape, -1)
+
         return z
 
 
