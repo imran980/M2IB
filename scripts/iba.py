@@ -192,7 +192,7 @@ class IBAInterpreter:
             loss_c, loss_f, loss_t = self.calc_loss(outputs=attended_text, labels=attended_image)
             loss_t.backward()
             optimizer.step(closure=None)
-        return loss_c, loss_f, loss_contrastive, loss_t 
+        return loss_c, loss_f, loss_t 
 
     import torch.nn.functional as F
 
