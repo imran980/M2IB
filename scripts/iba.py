@@ -98,12 +98,17 @@ class InformationBottleneck(nn.Module):
         self.n_components = n_components
         self.std = torch.tensor(std, dtype=torch.float, device=self.device, requires_grad=False)
         self.mean = torch.tensor(mean, dtype=torch.float, device=self.device, requires_grad=False)
-        
-        # Initialize GMM parameters
-        self.mixture_weights = nn.Parameter(torch.full((1, n_components), fill_value=1/n_components, device=self.device))
-        self.mixture_means = nn.Parameter(self.mean.unsqueeze(1).repeat(1, n_components, 1), requires_grad=True)
-        self.mixture_precisions = nn.Parameter(torch.ones_like(self.mixture_means) / (self.std.unsqueeze(1) ** 2), requires_grad=True)
-        
+    
+        # Initialize GMM parameters based on the shapes of mean and std
+        if len(self.mean.shape) == 1:
+            self.mixture_weights = nn.Parameter(torch.full((1, n_components), fill_value=1/n_components, device=self.device))
+            self.mixture_means = nn.Parameter(self.mean.unsqueeze(1).repeat(1, n_components, 1), requires_grad=True)
+            self.mixture_precisions = nn.Parameter(torch.ones_like(self.mixture_means) / (self.std.unsqueeze(1) ** 2), requires_grad=True)
+        else:
+            self.mixture_weights = nn.Parameter(torch.full((1, n_components, *self.mean.shape[1:]), fill_value=1/n_components, device=self.device))
+            self.mixture_means = nn.Parameter(self.mean.unsqueeze(2).repeat(1, 1, n_components, *[1] * (len(self.mean.shape) - 1)), requires_grad=True)
+            self.mixture_precisions = nn.Parameter(torch.ones_like(self.mixture_means) / (self.std.unsqueeze(2) ** 2), requires_grad=True)
+    
         self.buffer_capacity = None
 
     def forward(self, x, **kwargs):
