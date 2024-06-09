@@ -87,45 +87,38 @@ class Estimator:
         self.num_seen = state["num_seen"]
 
 
+import torch
+import torch.nn as nn
+import torch.distributions as dist
+
 class InformationBottleneck(nn.Module):
-    def __init__(self, mean: np.ndarray, std: np.ndarray, device=None):
+    def __init__(self, mean: np.ndarray, std: np.ndarray, n_components: int = 10, device=None):
         super().__init__()
         self.device = device
-        self.initial_value = 5.0
+        self.n_components = n_components
         self.std = torch.tensor(std, dtype=torch.float, device=self.device, requires_grad=False)
         self.mean = torch.tensor(mean, dtype=torch.float, device=self.device, requires_grad=False)
-        self.alpha = nn.Parameter(torch.full((1, *self.mean.shape), fill_value=self.initial_value, device=self.device))
-        self.sigmoid = nn.Sigmoid()
+        
+        # Initialize GMM parameters
+        self.mixture_weights = nn.Parameter(torch.full((1, n_components), fill_value=1/n_components, device=self.device))
+        self.mixture_means = nn.Parameter(self.mean.unsqueeze(1).repeat(1, n_components, 1), requires_grad=True)
+        self.mixture_precisions = nn.Parameter(torch.ones_like(self.mixture_means) / (self.std.unsqueeze(1) ** 2), requires_grad=True)
+        
         self.buffer_capacity = None
 
-        self.reset_alpha()
-
-    @staticmethod
-    def _sample_t(mu, noise_var):
-        #log_noise_var = torch.clamp(log_noise_var, -10, 10)
-        noise_std = noise_var.sqrt()
-        eps = mu.data.new(mu.size()).normal_()
-        return mu + noise_std * eps
-
-    @staticmethod
-    def _calc_capacity(mu, var):
-        # KL[P(t|x)||Q(t)] where Q(t) is N(0,1)
-        kl =  -0.5 * (1 + torch.log(var) - mu**2 - var)
-        return kl
-
-    def reset_alpha(self):
-        with torch.no_grad():
-            self.alpha.fill_(self.initial_value)
-        return self.alpha
-
     def forward(self, x, **kwargs):
-        lamb = self.sigmoid(self.alpha)
-        lamb = lamb.expand(x.shape[0], x.shape[1], -1)
-        masked_mu = x * lamb
-        masked_var = (1-lamb)**2
-        self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
-        t = self._sample_t(masked_mu, masked_var)
-        return (t,)
+        batch_size, feature_dim = x.shape
+        
+        # Compute GMM parameters
+        gmm = dist.GaussianMixture(self.mixture_weights, self.mixture_means, self.mixture_precisions.reciprocal())
+        
+        # Sample from the GMM
+        z = gmm.sample((batch_size,)).view(batch_size, -1)
+        
+        # Compute KL divergence between GMM and standard normal
+        self.buffer_capacity = gmm.log_prob(z) - dist.Normal(torch.zeros_like(z), torch.ones_like(z)).log_prob(z)
+        
+        return z
 
 
 class IBAInterpreter:
@@ -140,7 +133,7 @@ class IBAInterpreter:
         self.progbar = progbar
         self.lr = lr
         self.train_steps = steps
-        self.bottleneck = InformationBottleneck(estim.mean(), estim.std(), device=self.device)
+        self.bottleneck = InformationBottleneck(estim.mean(), estim.std(), n_components=10, device=self.device)
         self.sequential = mySequential(self.original_layer, self.bottleneck)
         self.cross_attention = CrossAttentionLayer(dim_model)
 
