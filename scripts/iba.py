@@ -129,7 +129,7 @@ class InformationBottleneck(nn.Module):
 
 
 class IBAInterpreter:
-    def __init__(self, model, estim: Estimator, beta, steps=10, lr=1, batch_size=10, progbar=False, dim_model=512):
+    def __init__(self, model, estim: Estimator, beta, steps=15, lr=0.5, batch_size=15, progbar=False, dim_model=512):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
         self.original_layer = estim.get_layer()
@@ -210,7 +210,8 @@ class IBAInterpreter:
         logits = outputs @ labels.T / temperature
         labels = torch.arange(logits.shape[0], device=logits.device)
         loss_f = F.cross_entropy(logits, labels)
-    
+
+        print("beta value-------------------------:", beta)
         total = self.beta * compression_term + loss_f
         print("compression term-----:", compression_term)
         print("loss_f-----:", loss_f)
