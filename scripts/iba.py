@@ -91,7 +91,7 @@ class InformationBottleneck(nn.Module):
     def __init__(self, mean: np.ndarray, std: np.ndarray, device=None):
         super().__init__()
         self.device = device
-        self.initial_value = 5.0
+        self.initial_value = 4.0
         self.std = torch.tensor(std, dtype=torch.float, device=self.device, requires_grad=False)
         self.mean = torch.tensor(mean, dtype=torch.float, device=self.device, requires_grad=False)
         self.alpha = nn.Parameter(torch.full((1, *self.mean.shape), fill_value=self.initial_value, device=self.device))
@@ -129,12 +129,12 @@ class InformationBottleneck(nn.Module):
 
 
 class IBAInterpreter:
-    def __init__(self, model, estim: Estimator, beta, steps=15, lr=0.5, batch_size=15, progbar=False, dim_model=512):
+    def __init__(self, model, estim: Estimator, beta, steps=25, lr=0.2, batch_size=25, progbar=False, dim_model=512):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
         self.original_layer = estim.get_layer()
         self.shape = estim.shape()
-        self.beta = beta
+        self.beta = 0.2
         self.batch_size = batch_size
         self.fitting_estimator = torch.nn.CosineSimilarity(eps=1e-6)
         self.progbar = progbar
@@ -172,11 +172,11 @@ class IBAInterpreter:
         return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
-        print("train bottleneck Dimensions of text_t------:",  text_t.shape)
-        print("train bottleneck Dimensions of image_t------:",  image_t.shape)
+        #print("train bottleneck Dimensions of text_t------:",  text_t.shape)
+        #print("train bottleneck Dimensions of image_t------:",  image_t.shape)
         batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
-        print("train bottleneck Dimensions of batch[0]------:",  batch[0].shape)
-        print("train bottleneck Dimensions of batch[1]------:",  batch[1].shape)
+        #print("train bottleneck Dimensions of batch[0]------:",  batch[0].shape)
+        #print("train bottleneck Dimensions of batch[1]------:",  batch[1].shape)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
         # Reset from previous run or modifications
         self.bottleneck.reset_alpha()
@@ -186,15 +186,15 @@ class IBAInterpreter:
                       disable=not self.progbar):
             optimizer.zero_grad()
             out = self.model.get_text_features(batch[0]), self.model.get_image_features(batch[1])
-            print("train bottleneck Dimensions of out[0]------:",  out[0].shape)
-            print("train bottleneck Dimensions of out[1]------:",  out[1].shape)
+            #print("train bottleneck Dimensions of out[0]------:",  out[0].shape)
+            #print("train bottleneck Dimensions of out[1]------:",  out[1].shape)
             attended_image, attended_text = self.cross_attention(out[1], out[0])
             loss_c, loss_f, loss_t = self.calc_loss(outputs=attended_text, labels=attended_image)
             loss_t.backward()
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t 
 
-    def calc_loss(self, outputs, labels, temperature=1):
+    def calc_loss(self, outputs, labels, temperature=0.8):
         """
         Calculate the combined loss expression for optimization of lambda
         Inputs:
