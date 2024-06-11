@@ -194,34 +194,34 @@ class IBAInterpreter:
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t 
 
-import torch.nn.functional as F
+    import torch.nn.functional as F
 
-def calc_loss(self, outputs, labels, temperature=0.1):
-    """
-    Calculate the combined loss expression for optimization of lambda
-    Inputs:
-        outputs: attended text features
-        labels: attended image features
-        temperature: temperature parameter for the CCML
-    """
-    compression_term = self.bottleneck.buffer_capacity.mean()
+    def calc_loss(self, outputs, labels, temperature=0.1):
+        """
+        Calculate the combined loss expression for optimization of lambda
+        Inputs:
+            outputs: attended text features
+            labels: attended image features
+            temperature: temperature parameter for the CCML
+        """
+        compression_term = self.bottleneck.buffer_capacity.mean()
 
-    # Normalize features
-    outputs = F.normalize(outputs, dim=-1)
-    labels = F.normalize(labels, dim=-1)
+        # Normalize features
+        outputs = F.normalize(outputs, dim=-1)
+        labels = F.normalize(labels, dim=-1)
 
-    # Compute similarity matrix
-    sim_matrix = outputs @ labels.T / temperature
+        # Compute similarity matrix
+        sim_matrix = outputs @ labels.T / temperature
 
-    # Create labels for positive and negative pairs
-    labels = torch.arange(sim_matrix.shape[0], device=sim_matrix.device)
-    negative_mask = ~torch.eye(sim_matrix.shape[0], dtype=bool, device=sim_matrix.device)
+        # Create labels for positive and negative pairs
+        labels = torch.arange(sim_matrix.shape[0], device=sim_matrix.device)
+        negative_mask = ~torch.eye(sim_matrix.shape[0], dtype=bool, device=sim_matrix.device)
 
-    # Compute CCML loss
-    positive_logits = sim_matrix[torch.arange(sim_matrix.shape[0]), labels]
-    negative_logits = sim_matrix[negative_mask].view(sim_matrix.shape[0], -1)
-    loss_ccml = F.cross_entropy(torch.cat([positive_logits.unsqueeze(1), negative_logits], dim=1), torch.zeros(sim_matrix.shape[0], dtype=torch.long, device=sim_matrix.device))
+        # Compute CCML loss
+        positive_logits = sim_matrix[torch.arange(sim_matrix.shape[0]), labels]
+        negative_logits = sim_matrix[negative_mask].view(sim_matrix.shape[0], -1)
+        loss_ccml = F.cross_entropy(torch.cat([positive_logits.unsqueeze(1), negative_logits], dim=1), torch.zeros(sim_matrix.shape[0], dtype=torch.long, device=sim_matrix.device))
 
-    total = self.beta * compression_term + loss_ccml
+        total = self.beta * compression_term + loss_ccml
 
-    return compression_term, loss_ccml, total
+        return compression_term, loss_ccml, total
