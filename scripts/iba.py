@@ -194,7 +194,7 @@ class IBAInterpreter:
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t 
 
-    def calc_loss(self, outputs, labels, temperature=0.1):
+    def calc_loss(self, outputs, labels, temperature=0.051):
         """
         Calculate the combined loss expression for optimization of lambda
         Inputs:
@@ -221,6 +221,7 @@ class IBAInterpreter:
         loss_ccml = F.cross_entropy(torch.cat([positive_logits.unsqueeze(1), negative_logits], dim=1), torch.zeros(sim_matrix.shape[0], dtype=torch.long, device=sim_matrix.device))
 
         total = self.beta * compression_term - loss_ccml
+        print("beta value----------:", self.beta)
         print("compression term----------------:", compression_term)
         print("loss_ccml----------------:", loss_ccml)
         print("total----------------:", total)
