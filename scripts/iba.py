@@ -194,7 +194,7 @@ class IBAInterpreter:
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t 
 
-    def calc_loss(self, outputs, labels, temperature=0.3):
+    def calc_loss(self, outputs, labels, temperature=0.1):
         """
         Calculate the combined loss expression for optimization of lambda
         Inputs:
