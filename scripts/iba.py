@@ -134,7 +134,7 @@ class IBAInterpreter:
         self.model = model.to(self.device)
         self.original_layer = estim.get_layer()
         self.shape = estim.shape()
-        self.beta = 50
+        self.beta = 80
         self.batch_size = batch_size
         self.fitting_estimator = torch.nn.CosineSimilarity(eps=1e-6)
         self.progbar = progbar
