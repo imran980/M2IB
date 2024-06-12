@@ -189,12 +189,10 @@ class IBAInterpreter:
             #print("train bottleneck Dimensions of out[0]------:",  out[0].shape)
             #print("train bottleneck Dimensions of out[1]------:",  out[1].shape)
             attended_image, attended_text = self.cross_attention(out[1], out[0])
-            loss_c, loss_f, loss_t = self.calc_loss(outputs=attended_text, labels=attended_image)
+            loss_c, loss_f, loss_t = self.calc_loss(outputs=attended_image, labels=attended_text)
             loss_t.backward()
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t 
-
-    import torch.nn.functional as F
 
     def calc_loss(self, outputs, labels, temperature=0.1):
         """
