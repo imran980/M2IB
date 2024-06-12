@@ -129,12 +129,12 @@ class InformationBottleneck(nn.Module):
 
 
 class IBAInterpreter:
-    def __init__(self, model, estim: Estimator, beta, steps=50, lr=0.5, batch_size=50, progbar=False, dim_model=512):
+    def __init__(self, model, estim: Estimator, beta, steps=50, lr=1, batch_size=50, progbar=False, dim_model=512):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
         self.original_layer = estim.get_layer()
         self.shape = estim.shape()
-        self.beta = 10
+        self.beta = 50
         self.batch_size = batch_size
         self.fitting_estimator = torch.nn.CosineSimilarity(eps=1e-6)
         self.progbar = progbar
@@ -194,7 +194,7 @@ class IBAInterpreter:
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t 
 
-    def calc_loss(self, outputs, labels, temperature=0.01):
+    def calc_loss(self, outputs, labels, temperature=0.1):
         """
         Calculate the combined loss expression for optimization of lambda
         Inputs:
