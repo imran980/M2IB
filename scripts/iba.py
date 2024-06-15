@@ -129,12 +129,12 @@ class InformationBottleneck(nn.Module):
 
 
 class IBAInterpreter:
-    def __init__(self, model, estim: Estimator, beta, steps=500, lr=1, batch_size=500, progbar=False, dim_model=512):
+    def __init__(self, model, estim: Estimator, beta, steps=80, lr=1e-4, batch_size=400, progbar=False, dim_model=512):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
         self.original_layer = estim.get_layer()
         self.shape = estim.shape()
-        self.beta = 100
+        self.beta = 0.01
         self.batch_size = batch_size
         self.fitting_estimator = torch.nn.CosineSimilarity(eps=1e-6)
         self.progbar = progbar
@@ -194,13 +194,13 @@ class IBAInterpreter:
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t 
 
-    def calc_loss(self, outputs, labels, temperature=0.1):
+    def calc_loss(self, outputs, labels, temperature=0.12):
         """
-        Calculate the combined loss expression for optimization of lambda
+        Calculate the combined loss expression for optimization
         Inputs:
             outputs: attended text features
             labels: attended image features
-            temperature: temperature parameter for the CCML
+            temperature: temperature parameter for the contrastive loss
         """
         compression_term = self.bottleneck.buffer_capacity.mean()
 
@@ -212,18 +212,24 @@ class IBAInterpreter:
         sim_matrix = outputs @ labels.T / temperature
 
         # Create labels for positive and negative pairs
-        labels = torch.arange(sim_matrix.shape[0], device=sim_matrix.device)
+        pos_labels = torch.arange(sim_matrix.shape[0], device=sim_matrix.device)
         negative_mask = ~torch.eye(sim_matrix.shape[0], dtype=bool, device=sim_matrix.device)
 
-        # Compute CCML loss
-        positive_logits = sim_matrix[torch.arange(sim_matrix.shape[0]), labels]
+        # Compute positive and negative logits
+        positive_logits = sim_matrix[torch.arange(sim_matrix.shape[0]), pos_labels]
         negative_logits = sim_matrix[negative_mask].view(sim_matrix.shape[0], -1)
-        loss_ccml = F.cross_entropy(torch.cat([positive_logits.unsqueeze(1), negative_logits], dim=1), torch.zeros(sim_matrix.shape[0], dtype=torch.long, device=sim_matrix.device))
 
-        total = self.beta * compression_term - loss_ccml
-        print("beta value----------:", self.beta)
-        print("compression term----------------:", compression_term)
-        print("loss_ccml----------------:", loss_ccml)
-        print("total----------------:", total)
+        # Compute contrastive loss (InfoNCE)
+        positive_exp = torch.exp(positive_logits)
+        negative_exp = torch.sum(torch.exp(negative_logits), dim=1)
+        loss_contrastive = -torch.log(positive_exp / (positive_exp + negative_exp)).mean()
 
-        return compression_term, loss_ccml, total
+        # Total loss
+        total_loss = self.beta * compression_term + loss_contrastive
+
+        print("Beta value:", self.beta)
+        print("Compression term:", compression_term)
+        print("Contrastive loss:", loss_contrastive)
+        print("Total loss:", total_loss)
+
+        return compression_term, loss_contrastive, total_loss
