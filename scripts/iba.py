@@ -195,10 +195,10 @@ class IBAInterpreter:
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t 
 
-        def calc_loss(self, outputs, labels):
-            """ Calculate the combined loss expression for optimization of lambda """
-            compression_term = self.bottleneck.buffer_capacity.mean()
-            fitting_term = self.fitting_estimator(outputs, labels).mean()
-            total =  self.beta * compression_term - fitting_term
-            return compression_term, fitting_term, total
+    def calc_loss(self, outputs, labels):
+        """ Calculate the combined loss expression for optimization of lambda """
+        compression_term = self.bottleneck.buffer_capacity.mean()
+        fitting_term = self.fitting_estimator(outputs, labels).mean()
+        total =  self.beta * compression_term - fitting_term
+        return compression_term, fitting_term, total
 
