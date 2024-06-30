@@ -203,25 +203,22 @@ class IBAInterpreter:
         #return compression_term, fitting_term, total
 
 
-    def calc_loss(self, image_features, text_features, temperature=0.07):
-        batch_size = image_features.shape[0]
-        labels = torch.arange(batch_size).to(image_features.device)
-    
-        # Normalize features
-        image_features = F.normalize(image_features, dim=1)
-        text_features = F.normalize(text_features, dim=1)
+    def calc_loss(self, outputs, labels, temperature=0.07):
+        compression_term = self.bottleneck.buffer_capacity.mean()
 
-        # Compute similarity matrix
-        logits = torch.matmul(image_features, text_features.T) / temperature
+        # Improved InfoNCE loss
+        outputs = F.normalize(outputs, dim=-1)
+        labels = F.normalize(labels, dim=-1)
+        logits = (outputs @ labels.T) / temperature
     
-        # Compute InfoNCE loss
+        batch_size = outputs.shape[0]
+        labels = torch.arange(batch_size, device=logits.device)
+    
         loss_i = F.cross_entropy(logits, labels)
         loss_t = F.cross_entropy(logits.T, labels)
         contrastive_loss = (loss_i + loss_t) / 2
 
-        # Combine with compression term
-        compression_term = self.bottleneck.buffer_capacity.mean()
-        total = self.beta * compression_term + contrastive_loss
+        total = self.beta * compression_term - contrastive_loss
 
         return compression_term, contrastive_loss, total
 
