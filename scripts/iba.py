@@ -195,28 +195,28 @@ class IBAInterpreter:
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t 
 
-    #def calc_loss(self, outputs, labels):
+    def calc_loss(self, outputs, labels):
         """ Calculate the combined loss expression for optimization of lambda """
-     #   compression_term = self.bottleneck.buffer_capacity.mean()
-      #  fitting_term = self.fitting_estimator(outputs, labels).mean()
-       # total =  self.beta * compression_term - fitting_term
-        #return compression_term, fitting_term, total
-
-
-    def calc_loss(self, outputs, labels, temperature=0.07):
         compression_term = self.bottleneck.buffer_capacity.mean()
+        fitting_term = self.fitting_estimator(outputs, labels).mean()
+        total =  self.beta * compression_term - fitting_term
+        return compression_term, fitting_term, total
+
+
+    #def calc_loss(self, outputs, labels, temperature=0.07):
+    #    compression_term = self.bottleneck.buffer_capacity.mean()
 
         # Improved InfoNCE loss
-        outputs = F.normalize(outputs, dim=-1)
-        labels = F.normalize(labels, dim=-1)
-        logits = (outputs @ labels.T) / temperature
+     #   outputs = F.normalize(outputs, dim=-1)
+     #   labels = F.normalize(labels, dim=-1)
+     #   logits = (outputs @ labels.T) / temperature
     
-        batch_size = outputs.shape[0]
-        labels = torch.arange(batch_size, device=logits.device)
+      #  batch_size = outputs.shape[0]
+     #   labels = torch.arange(batch_size, device=logits.device)
     
-        loss_i = F.cross_entropy(logits, labels)
-        loss_t = F.cross_entropy(logits.T, labels)
-        contrastive_loss = (loss_i + loss_t) / 2
+     #   loss_i = F.cross_entropy(logits, labels)
+     #   loss_t = F.cross_entropy(logits.T, labels)
+     #   contrastive_loss = (loss_i + loss_t) / 2
 
         total = self.beta * compression_term - contrastive_loss
 
