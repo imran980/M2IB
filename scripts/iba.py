@@ -218,7 +218,7 @@ class IBAInterpreter:
      #   loss_t = F.cross_entropy(logits.T, labels)
      #   contrastive_loss = (loss_i + loss_t) / 2
 
-        total = self.beta * compression_term - contrastive_loss
+     #   total = self.beta * compression_term - contrastive_loss
 
-        return compression_term, contrastive_loss, total
+     #   return compression_term, contrastive_loss, total
 
