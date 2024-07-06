@@ -36,7 +36,7 @@ def get_compression_estimator(var, layer, features):
     estimator.layer = layer
     return estimator
 
-def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True, threshold=0.1):
+def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=50, progbar=True):
     features = extract_feature_map(model.text_model, layer_idx, text_t)
     layer = extract_bert_layer(model.text_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
@@ -44,6 +44,7 @@ def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_s
     heatmap = reader.text_heatmap(text_t, image_t)
     
     # Apply thresholding to the heatmap
+    threshold = np.percentile(heatmap, 40)
     heatmap[heatmap < threshold] = 0  # or use a small value like 1e-6 instead of 0
     
     # Renormalize the heatmap
@@ -52,7 +53,7 @@ def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_s
     
     return heatmap
 
-def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=10, progbar=True):
+def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=50, progbar=True):
     features = extract_feature_map(model.vision_model, layer_idx, image_t)
     layer = extract_bert_layer(model.vision_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
