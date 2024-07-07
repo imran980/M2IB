@@ -96,46 +96,42 @@ class InformationBottleneck(nn.Module):
         self.initial_value = 5.0
         self.std = torch.tensor(std, dtype=torch.float, device=self.device, requires_grad=False)
         self.mean = torch.tensor(mean, dtype=torch.float, device=self.device, requires_grad=False)
-        
-        # Adjust alpha to match the input shape
-        self.alpha = nn.Parameter(torch.full((1, 512), fill_value=self.initial_value, device=self.device))
-        
+        self.alpha = nn.Parameter(torch.full((1, *self.mean.shape), fill_value=self.initial_value, device=self.device))
         self.sigmoid = nn.Sigmoid()
         self.buffer_capacity = None
 
-    def forward(self, x, **kwargs):
-        print("Input x shape:", x.shape)
-        print("Alpha shape:", self.alpha.shape)
-        
-        lamb = self.sigmoid(self.alpha)
-        print("Lambda shape after sigmoid:", lamb.shape)
-        
-        # Expand lamb to match x's shape
-        lamb = lamb.expand(x.shape[0], -1)
-        
-        print("Final lambda shape:", lamb.shape)
-        
-        masked_mu = x * lamb
-        masked_var = (1-lamb)**2
-        self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
-        t = self._sample_t(masked_mu, masked_var)
-        return (t,)
-
-    def reset_alpha(self):
-        with torch.no_grad():
-            self.alpha.fill_(self.initial_value)
-        return self.alpha
+        self.reset_alpha()
 
     @staticmethod
     def _sample_t(mu, noise_var):
+        #log_noise_var = torch.clamp(log_noise_var, -10, 10)
         noise_std = noise_var.sqrt()
         eps = mu.data.new(mu.size()).normal_()
         return mu + noise_std * eps
 
     @staticmethod
     def _calc_capacity(mu, var):
-        kl = -0.5 * (1 + torch.log(var) - mu**2 - var)
+        # KL[P(t|x)||Q(t)] where Q(t) is N(0,1)
+        kl =  -0.5 * (1 + torch.log(var) - mu**2 - var)
         return kl
+
+    def reset_alpha(self):
+        with torch.no_grad():
+            self.alpha.fill_(self.initial_value)
+        return self.alpha
+
+    def forward(self, x, **kwargs):
+        print("x shape------------------:", x.shape)
+        
+        lamb = self.sigmoid(self.alpha)
+        lamb = lamb.expand(x.shape[0], x.shape[1], -1)
+        print("lamb shape---------------------:", lamb.shape)
+        
+        masked_mu = x * lamb
+        masked_var = (1-lamb)**2
+        self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
+        t = self._sample_t(masked_mu, masked_var)
+        return (t,)
 
 
 class IBAInterpreter:
@@ -244,8 +240,8 @@ class IBAInterpreter:
         #t_labels, = self.bottleneck(labels)
         
 
-        print("t_outputs shape:", t_outputs.shape)
-        print("t_labels shape:", t_labels.shape)
+        print("t_outputs shape:", outputs.shape)
+        print("t_labels shape:", labels.shape)
 
         compression_term = self.bottleneck.buffer_capacity.mean()
         fitting_term = self.fitting_estimator(outputs, labels).mean()
