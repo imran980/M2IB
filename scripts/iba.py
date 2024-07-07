@@ -122,7 +122,20 @@ class InformationBottleneck(nn.Module):
 
     def forward(self, x, **kwargs):
         lamb = self.sigmoid(self.alpha)
-        lamb = lamb.expand(x.shape[0], x.shape[1], -1)
+        
+        # Adjust lamb to match input dimensions
+        if lamb.shape != x.shape:
+            # Expand lamb to match batch size
+            lamb = lamb.expand(x.shape[0], -1, -1)
+            
+            # If x has more dimensions than lamb, add dimensions to lamb
+            while lamb.dim() < x.dim():
+                lamb = lamb.unsqueeze(-1)
+            
+            # Interpolate lamb to match x's shape
+            if lamb.shape[1:] != x.shape[1:]:
+                lamb = F.interpolate(lamb, size=x.shape[1:], mode='nearest')
+        
         masked_mu = x * lamb
         masked_var = (1-lamb)**2
         self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
@@ -146,11 +159,12 @@ class IBAInterpreter:
         self.sequential = mySequential(self.original_layer, self.bottleneck)
         self.cross_attention = CrossAttentionLayer(dim_model)
 
-        # New: Additional components for the loss function
+
+        # Additional components for the loss function
         self.focal = FocalLoss(class_num=2, alpha=0.25, gamma=2.0, size_average=True)
         self.softmax = nn.Softmax(dim=1)
         
-        # New: Add these parameters with default values
+        # Add these parameters with default values
         self.temperature = 0.07
         self.vsd_loss_weight = 0.1
         self.focal_loss_weight = 1.0
@@ -233,30 +247,23 @@ class IBAInterpreter:
         return compression_term, contrastive_loss, total 
 
     def calc_loss3(self, outputs, labels):
-        """ Calculate the combined loss expression for optimization of lambda """
-        # Apply Information Bottleneck to outputs and labels
         t_outputs, = self.bottleneck(outputs)
         t_labels, = self.bottleneck(labels)
 
-        # IB loss components
         compression_term = self.bottleneck.buffer_capacity.mean()
         fitting_term = self.fitting_estimator(t_outputs, t_labels).mean()
 
-        # Calculate VSD loss (KL divergence)
         vsd_loss = F.kl_div(
             input=F.log_softmax(t_outputs / self.temperature, dim=-1),
             target=F.softmax(t_labels / self.temperature, dim=-1),
             reduction='batchmean'
         )
 
-        # Calculate Focal Loss
-        # Note: This assumes binary classification. Adjust if needed.
         batch_size = outputs.shape[0]
         binary_labels = torch.zeros(batch_size, 2, device=self.device)
         binary_labels[:, 1] = 1  # Assuming positive class
         focal_loss = self.focal(self.softmax(t_outputs), binary_labels)
 
-        # Total loss
         total_loss = (self.beta * compression_term - fitting_term +
                       self.vsd_loss_weight * vsd_loss +
                       self.focal_loss_weight * focal_loss)
