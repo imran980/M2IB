@@ -96,11 +96,35 @@ class InformationBottleneck(nn.Module):
         self.initial_value = 5.0
         self.std = torch.tensor(std, dtype=torch.float, device=self.device, requires_grad=False)
         self.mean = torch.tensor(mean, dtype=torch.float, device=self.device, requires_grad=False)
-        self.alpha = nn.Parameter(torch.full((1, *self.mean.shape), fill_value=self.initial_value, device=self.device))
+        
+        # Adjust alpha to match the input shape
+        self.alpha = nn.Parameter(torch.full((1, 512), fill_value=self.initial_value, device=self.device))
+        
         self.sigmoid = nn.Sigmoid()
         self.buffer_capacity = None
 
-        self.reset_alpha()
+    def forward(self, x, **kwargs):
+        print("Input x shape:", x.shape)
+        print("Alpha shape:", self.alpha.shape)
+        
+        lamb = self.sigmoid(self.alpha)
+        print("Lambda shape after sigmoid:", lamb.shape)
+        
+        # Expand lamb to match x's shape
+        lamb = lamb.expand(x.shape[0], -1)
+        
+        print("Final lambda shape:", lamb.shape)
+        
+        masked_mu = x * lamb
+        masked_var = (1-lamb)**2
+        self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
+        t = self._sample_t(masked_mu, masked_var)
+        return (t,)
+
+    def reset_alpha(self):
+        with torch.no_grad():
+            self.alpha.fill_(self.initial_value)
+        return self.alpha
 
     @staticmethod
     def _sample_t(mu, noise_var):
@@ -112,20 +136,6 @@ class InformationBottleneck(nn.Module):
     def _calc_capacity(mu, var):
         kl = -0.5 * (1 + torch.log(var) - mu**2 - var)
         return kl
-
-    def reset_alpha(self):
-        with torch.no_grad():
-            self.alpha.fill_(self.initial_value)
-        return self.alpha
-
-    def forward(self, x, **kwargs):
-        lamb = self.sigmoid(self.alpha)
-        lamb = lamb.expand(x.shape[0], x.shape[1], -1)
-        masked_mu = x * lamb
-        masked_var = (1 - lamb)**2
-        self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
-        t = self._sample_t(masked_mu, masked_var)
-        return (t,)
 
 
 class IBAInterpreter:
