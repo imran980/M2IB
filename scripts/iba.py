@@ -11,7 +11,7 @@ from tqdm import tqdm
 from scripts.utils import replace_layer, normalize, mySequential
 from scripts.cross_attention import CrossAttentionLayer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-from script.loss_focal import FocalLoss
+from scripts.loss_focal import FocalLoss
 # np.random.seed(42)
 class Estimator:
     """
