@@ -1,4 +1,3 @@
-
 """
 Based on code of https://github.com/bazingagin/IBA, https://github.com/BioroboticsLab/IBA
 """
@@ -10,8 +9,11 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from scripts.utils import replace_layer, normalize, mySequential
 from scripts.cross_attention import CrossAttentionLayer
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from scripts.loss_focal import FocalLoss
+
+
 # np.random.seed(42)
 class Estimator:
     """
@@ -26,7 +28,6 @@ class Estimator:
         self.eps = 1e-5
 
     def feed(self, z: np.ndarray):
-
         # Initialize if this is the first datapoint
         if self.N is None:
             self.M = np.zeros_like(z, dtype=float)
@@ -57,13 +58,12 @@ class Estimator:
         return self.M.squeeze()
 
     def p_zero(self):
-        return 1 - self.N / (self.num_seen + 1)  # Adding 1 for stablility, so that p_zero > 0 everywhere
+        return 1 - self.N / (self.num_seen + 1)  # Adding 1 for stability, so that p_zero > 0 everywhere
 
     def std(self, stabilize=True):
         if stabilize:
             # Add small numbers, so that dead neurons are not a problem
             return np.sqrt(np.maximum(self.S, self.eps) / np.maximum(self.N, 1.0))
-
         else:
             return np.sqrt(self.S / self.N)
 
@@ -122,7 +122,7 @@ class InformationBottleneck(nn.Module):
         lamb = self.sigmoid(self.alpha)
         lamb = lamb.expand(x.shape[0], x.shape[1], -1)
         masked_mu = x * lamb
-        masked_var = (1-lamb)**2
+        masked_var = (1 - lamb)**2
         self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
         t = self._sample_t(masked_mu, masked_var)
         return (t,)
@@ -144,7 +144,6 @@ class IBAInterpreter:
         self.sequential = mySequential(self.original_layer, self.bottleneck)
         self.cross_attention = CrossAttentionLayer(dim_model)
 
-
         # Additional components for the loss function
         self.focal = FocalLoss(class_num=2, alpha=0.25, gamma=2.0, size_average=True)
         self.softmax = nn.Softmax(dim=1)
@@ -162,7 +161,7 @@ class IBAInterpreter:
     
     def vision_heatmap(self, text_t, image_t):
         saliency, loss_c, loss_f, loss_t = self._run_vision_training(text_t, image_t)
-        saliency = torch.nansum(saliency, -1)[1:] # Discard the first because it's the CLS token
+        saliency = torch.nansum(saliency, -1)[1:]  # Discard the first because it's the CLS token
         dim = int(saliency.numel() ** 0.5)
         saliency = saliency.reshape(1, 1, dim, dim)
         saliency = torch.nn.functional.interpolate(saliency, size=224, mode='bilinear')
@@ -208,9 +207,8 @@ class IBAInterpreter:
         """ Calculate the combined loss expression for optimization of lambda """
         compression_term = self.bottleneck.buffer_capacity.mean()
         fitting_term = self.fitting_estimator(outputs, labels).mean()
-        total =  self.beta * compression_term - fitting_term
+        total = self.beta * compression_term - fitting_term
         return compression_term, fitting_term, total 
-
 
     def calc_loss2(self, outputs, labels, temperature=0.07):
         compression_term = self.bottleneck.buffer_capacity.mean()
@@ -231,47 +229,46 @@ class IBAInterpreter:
 
         return compression_term, contrastive_loss, total 
 
-	def calc_loss3(self, outputs, labels):
-		print("Initial outputs shape:", outputs.shape)
-		print("Initial labels shape:", labels.shape)
-	
-		t_outputs, = self.bottleneck(outputs)
-		t_labels, = self.bottleneck(labels)
-	
-		print("t_outputs shape after bottleneck:", t_outputs.shape)
-		print("t_labels shape after bottleneck:", t_labels.shape)
-	
-		compression_term = self.bottleneck.buffer_capacity.mean()
-		fitting_term = self.fitting_estimator(t_outputs, t_labels).mean()
-	
-		# Adjust VSD loss calculation
-		vsd_loss = F.kl_div(
-			input=F.log_softmax(t_outputs / self.temperature, dim=-1),
-			target=F.softmax(t_labels / self.temperature, dim=-1),
-			reduction='batchmean'
-		)
-	
-		print("focal_inputs shape:", focal_inputs.shape)
-		print("binary_labels shape:", binary_labels.shape)
-	
-		# Prepare inputs for FocalLoss
-		batch_size = outputs.shape[0]
-		binary_labels = torch.zeros(batch_size, 2, device=self.device)
-		binary_labels[:, 1] = 1  # Assuming positive class
-	
-		# Adjust t_outputs for FocalLoss input
-		focal_inputs = t_outputs.mean(dim=-1)  # Average across the feature dimension
-		focal_inputs = torch.stack((1 - focal_inputs, focal_inputs), dim=-1)  # Create binary prediction
-		
-		print("focal_inputs shape:", focal_inputs.shape)
-		print("binary_labels shape:", binary_labels.shape)
-		
-		focal_loss = self.focal(focal_inputs, binary_labels)
-	
-		total_loss = (self.beta * compression_term - fitting_term +
-					self.vsd_loss_weight * vsd_loss +
-					self.focal_loss_weight * focal_loss)
-	
-		print("Total loss:", total_loss.item())
-		return compression_term, fitting_term, total_loss
-	
+    def calc_loss3(self, outputs, labels):
+        print("Initial outputs shape:", outputs.shape)
+        print("Initial labels shape:", labels.shape)
+    
+        t_outputs, = self.bottleneck(outputs)
+        t_labels, = self.bottleneck(labels)
+    
+        print("t_outputs shape after bottleneck:", t_outputs.shape)
+        print("t_labels shape after bottleneck:", t_labels.shape)
+    
+        compression_term = self.bottleneck.buffer_capacity.mean()
+        fitting_term = self.fitting_estimator(t_outputs, t_labels).mean()
+    
+        # Adjust VSD loss calculation
+        vsd_loss = F.kl_div(
+            input=F.log_softmax(t_outputs / self.temperature, dim=-1),
+            target=F.softmax(t_labels / self.temperature, dim=-1),
+            reduction='batchmean'
+        )
+    
+        print("focal_inputs shape:", focal_inputs.shape)
+        print("binary_labels shape:", binary_labels.shape)
+    
+        # Prepare inputs for FocalLoss
+        batch_size = outputs.shape[0]
+        binary_labels = torch.zeros(batch_size, 2, device=self.device)
+        binary_labels[:, 1] = 1  # Assuming positive class
+    
+        # Adjust t_outputs for FocalLoss input
+        focal_inputs = t_outputs.mean(dim=-1)  # Average across the feature dimension
+        focal_inputs = torch.stack((1 - focal_inputs, focal_inputs), dim=-1)  # Create binary prediction
+        
+        print("focal_inputs shape:", focal_inputs.shape)
+        print("binary_labels shape:", binary_labels.shape)
+        
+        focal_loss = self.focal(focal_inputs, binary_labels)
+    
+        total_loss = (self.beta * compression_term - fitting_term +
+                      self.vsd_loss_weight * vsd_loss +
+                      self.focal_loss_weight * focal_loss)
+    
+        print("Total loss:", total_loss.item())
+        return compression_term, fitting_term, total_loss
