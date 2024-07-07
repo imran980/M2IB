@@ -240,19 +240,20 @@ class IBAInterpreter:
         return compression_term, contrastive_loss, total 
 
     def calc_loss3(self, outputs, labels):
-        t_outputs, = self.bottleneck(outputs)
-        t_labels, = self.bottleneck(labels)
+        #t_outputs, = self.bottleneck(outputs)
+        #t_labels, = self.bottleneck(labels)
+        
 
         print("t_outputs shape:", t_outputs.shape)
         print("t_labels shape:", t_labels.shape)
 
         compression_term = self.bottleneck.buffer_capacity.mean()
-        fitting_term = self.fitting_estimator(t_outputs, t_labels).mean()
+        fitting_term = self.fitting_estimator(outputs, labels).mean()
 
         # Adjust VSD loss calculation
         vsd_loss = F.kl_div(
-            input=F.log_softmax(t_outputs / self.temperature, dim=-1),
-            target=F.softmax(t_labels / self.temperature, dim=-1),
+            input=F.log_softmax(outputs / self.temperature, dim=-1),
+            target=F.softmax(labels / self.temperature, dim=-1),
             reduction='batchmean'
         )
 
@@ -262,7 +263,7 @@ class IBAInterpreter:
         binary_labels[:, 1] = 1  # Assuming positive class
 
         # Adjust t_outputs for FocalLoss input
-        focal_inputs = t_outputs.mean(dim=-1)  # Average across the feature dimension
+        focal_inputs = outputs.mean(dim=-1)  # Average across the feature dimension
         focal_inputs = torch.stack((1 - focal_inputs, focal_inputs), dim=-1)  # Create binary prediction
 
         focal_loss = self.focal(focal_inputs, binary_labels)
