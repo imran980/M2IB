@@ -150,7 +150,7 @@ class IBAInterpreter:
         self.focal = FocalLoss(class_num=2, alpha=0.25, gamma=2.0, size_average=True)
         self.softmax = nn.Softmax(dim=1)
         
-        # New: Add these parameters or set them to default values
+        # New: Add these parameters with default values
         self.temperature = 0.07
         self.vsd_loss_weight = 0.1
         self.focal_loss_weight = 1.0
