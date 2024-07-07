@@ -104,15 +104,13 @@ class InformationBottleneck(nn.Module):
 
     @staticmethod
     def _sample_t(mu, noise_var):
-        #log_noise_var = torch.clamp(log_noise_var, -10, 10)
         noise_std = noise_var.sqrt()
         eps = mu.data.new(mu.size()).normal_()
         return mu + noise_std * eps
 
     @staticmethod
     def _calc_capacity(mu, var):
-        # KL[P(t|x)||Q(t)] where Q(t) is N(0,1)
-        kl =  -0.5 * (1 + torch.log(var) - mu**2 - var)
+        kl = -0.5 * (1 + torch.log(var) - mu**2 - var)
         return kl
 
     def reset_alpha(self):
@@ -123,18 +121,12 @@ class InformationBottleneck(nn.Module):
     def forward(self, x, **kwargs):
         lamb = self.sigmoid(self.alpha)
         
-        # Adjust lamb to match input dimensions
-        if lamb.shape != x.shape:
-            # Expand lamb to match batch size
-            lamb = lamb.expand(x.shape[0], -1, -1)
-            
-            # If x has more dimensions than lamb, add dimensions to lamb
-            while lamb.dim() < x.dim():
-                lamb = lamb.unsqueeze(-1)
-            
-            # Interpolate lamb to match x's shape
-            if lamb.shape[1:] != x.shape[1:]:
-                lamb = F.interpolate(lamb, size=x.shape[1:], mode='nearest')
+        # Ensure lamb has the same number of dimensions as x
+        while lamb.dim() < x.dim():
+            lamb = lamb.unsqueeze(0)
+        
+        # Broadcast lamb to match x's shape
+        lamb = lamb.expand_as(x)
         
         masked_mu = x * lamb
         masked_var = (1-lamb)**2
