@@ -257,8 +257,8 @@ class IBAInterpreter:
     
         # Prepare inputs for FocalLoss
         batch_size = outputs.shape[0]
-        binary_labels = torch.zeros(batch_size, 2, device=self.device)
-        binary_labels[:, 1] = 1  # Assuming positive class
+        binary_labels = torch.zeros(batch_size, dtype=torch.long, device=self.device)
+        binary_labels[:] = 1  # Assuming positive class
     
         # Adjust outputs for FocalLoss input
         focal_inputs = outputs.mean(dim=-1)  # Average across the feature dimension
