@@ -153,6 +153,7 @@ class IBAInterpreter:
 
         # Additional components for the loss function
         self.focal = FocalLoss(class_num=2, alpha=0.25, gamma=2.0, size_average=True)
+        self.focal = self.focal.to(self.device)
         self.softmax = nn.Softmax(dim=1)
         
         # Add these parameters with default values
