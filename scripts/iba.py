@@ -10,8 +10,9 @@ from tqdm import tqdm
 from scripts.utils import replace_layer, normalize, mySequential
 from scripts.cross_attention import CrossAttentionLayer
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from scripts.loss_focal import FocalLoss
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # np.random.seed(42)
