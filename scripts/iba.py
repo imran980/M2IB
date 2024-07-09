@@ -236,36 +236,40 @@ class IBAInterpreter:
         return compression_term, contrastive_loss, total 
 
     def calc_loss3(self, outputs, labels):
-        #t_outputs, = self.bottleneck(outputs)
-        #t_labels, = self.bottleneck(labels)
-        
-
-        print("t_outputs shape:", outputs.shape)
-        print("t_labels shape:", labels.shape)
-
-        compression_term = self.bottleneck.buffer_capacity.mean()
-        fitting_term = self.fitting_estimator(outputs, labels).mean()
-
-        # Adjust VSD loss calculation
+        # Compression term (loss_c)
+        loss_c = self.bottleneck.buffer_capacity.mean()
+    
+        # Normalize outputs and labels
+        outputs = F.normalize(outputs, dim=-1)
+        labels = F.normalize(labels, dim=-1)
+    
+        # Fitting term (loss_f) - using cosine similarity
+        loss_f = self.fitting_estimator(outputs, labels).mean()
+    
+        # VSD loss calculation
         vsd_loss = F.kl_div(
-            input=F.log_softmax(outputs / self.temperature, dim=-1),
-            target=F.softmax(labels / self.temperature, dim=-1),
+            F.log_softmax(outputs / self.temperature, dim=-1),
+            F.softmax(labels / self.temperature, dim=-1),
             reduction='batchmean'
         )
-
+    
         # Prepare inputs for FocalLoss
         batch_size = outputs.shape[0]
         binary_labels = torch.zeros(batch_size, 2, device=self.device)
         binary_labels[:, 1] = 1  # Assuming positive class
-
-        # Adjust t_outputs for FocalLoss input
+    
+        # Adjust outputs for FocalLoss input
         focal_inputs = outputs.mean(dim=-1)  # Average across the feature dimension
         focal_inputs = torch.stack((1 - focal_inputs, focal_inputs), dim=-1)  # Create binary prediction
-
+    
         focal_loss = self.focal(focal_inputs, binary_labels)
-
-        total_loss = (self.beta * compression_term - fitting_term +
-                      self.vsd_loss_weight * vsd_loss +
-                      self.focal_loss_weight * focal_loss)
-
-        return compression_term, fitting_term, total_loss
+    
+        # Combine all loss terms to get total loss (loss_t)
+        loss_t = (
+            self.beta * loss_c
+            - loss_f
+            + self.vsd_loss_weight * vsd_loss
+            + self.focal_loss_weight * focal_loss
+        )
+    
+        return loss_c, loss_f, loss_t
