@@ -25,7 +25,7 @@ class FocalLoss(nn.Module):
         P = F.softmax(inputs, dim=1)
 
         class_mask = torch.zeros(N, C, device=device)
-        ids = targets.view(-1, 1)
+        ids = targets.view(-1, 1).long()  # Ensure ids is of dtype long (int64)
         class_mask.scatter_(1, ids, 1.)
 
         if inputs.is_cuda and not self.alpha.is_cuda:
