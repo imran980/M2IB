@@ -152,14 +152,14 @@ class IBAInterpreter:
         self.cross_attention = CrossAttentionLayer(dim_model)
 
         # Additional components for the loss function
-        self.focal = FocalLoss(class_num=2, alpha=0.25, gamma=2.0, size_average=True)
+        self.focal = FocalLoss(class_num=2, alpha=0.5, gamma=2.0, size_average=True)
         self.focal = self.focal.to(self.device)
         self.softmax = nn.Softmax(dim=1)
         
         # Add these parameters with default values
-        self.temperature = 0.07
+        self.temperature = 0.03
         self.vsd_loss_weight = 0.1
-        self.focal_loss_weight = 1.0
+        self.focal_loss_weight = 1.5
 
     def text_heatmap(self, text_t, image_t):
         saliency, loss_c, loss_f, loss_t = self._run_text_training(text_t, image_t)
@@ -206,7 +206,7 @@ class IBAInterpreter:
             print("train bottleneck Dimensions of out[0]------:",  out[0].shape)
             print("train bottleneck Dimensions of out[1]------:",  out[1].shape)
             attended_image, attended_text = self.cross_attention(out[1], out[0])
-            loss_c, loss_f, loss_t = self.calc_loss1(outputs=attended_text, labels=attended_image)
+            loss_c, loss_f, loss_t = self.calc_loss3(outputs=attended_text, labels=attended_image)
             loss_t.backward()
             optimizer.step(closure=None)
         return loss_c, loss_f, loss_t 
