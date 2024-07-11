@@ -158,7 +158,7 @@ class IBAInterpreter:
         # Add these parameters with default values
         self.temperature = 0.01
         self.vsd_loss_weight = 0.08
-        self.focal_loss_weight = 1.9
+        self.focal_loss_weight = 1.9 #1.0
         
         # Additional components for the loss function
         """self.focal = FocalLoss(class_num=2, alpha=0.5, gamma=2.0, size_average=True)
