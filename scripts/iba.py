@@ -151,15 +151,24 @@ class IBAInterpreter:
         self.sequential = mySequential(self.original_layer, self.bottleneck)
         self.cross_attention = CrossAttentionLayer(dim_model)
 
+                # Additional components for the loss function
+        self.focal = FocalLoss(class_num=2, alpha=0.25, gamma=2.5, size_average=True)
+        self.focal = self.focal.to(self.device)
+        self.softmax = nn.Softmax(dim=1)
+        # Add these parameters with default values
+        self.temperature = 0.01
+        self.vsd_loss_weight = 0.08
+        self.focal_loss_weight = 1.9
+        
         # Additional components for the loss function
-        self.focal = FocalLoss(class_num=2, alpha=0.5, gamma=2.0, size_average=True)
+       """ self.focal = FocalLoss(class_num=2, alpha=0.5, gamma=2.0, size_average=True)
         self.focal = self.focal.to(self.device)
         self.softmax = nn.Softmax(dim=1)
         
         # Add these parameters with default values
         self.temperature = 0.03
         self.vsd_loss_weight = 0.1
-        self.focal_loss_weight = 1.5
+        self.focal_loss_weight = 1.5 """
 
     def text_heatmap(self, text_t, image_t):
         saliency, loss_c, loss_f, loss_t = self._run_text_training(text_t, image_t)
