@@ -44,7 +44,7 @@ def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_s
     heatmap = reader.text_heatmap(text_t, image_t)
     
     # Apply thresholding to the heatmap
-    threshold = np.percentile(heatmap, 40)
+    threshold = np.percentile(heatmap, 50)
     heatmap[heatmap < threshold] = 0  # or use a small value like 1e-6 instead of 0
     
     # Renormalize the heatmap
