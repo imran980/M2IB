@@ -152,7 +152,7 @@ class IBAInterpreter:
         self.cross_attention = CrossAttentionLayer(dim_model)
 
         # Additional components for the loss function
-        self.focal = FocalLoss(class_num=2, alpha=0.5, gamma=2.3, size_average=True)
+        self.focal = FocalLoss(class_num=2, alpha=0.5, gamma=1.7, size_average=True)
         self.focal = self.focal.to(self.device)
         self.softmax = nn.Softmax(dim=1)
         # Add these parameters with default values
