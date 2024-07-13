@@ -157,7 +157,7 @@ class IBAInterpreter:
         self.softmax = nn.Softmax(dim=1)
         # Add these parameters with default values
         self.temperature = 0.05
-        self.vsd_loss_weight = 1.8 #0.08
+        self.vsd_loss_weight = 1.6 #0.08
         self.focal_loss_weight = 1.6 #1.9
         
         # Additional components for the loss function
