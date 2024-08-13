@@ -1,6 +1,14 @@
 """
 Based on code of https://github.com/bazingagin/IBA, https://github.com/BioroboticsLab/IBA
 """
+"""
+Adjust beta values: Try lower values (e.g., 0.01-0.05) for both vbeta and tbeta.
+Increase training steps: Try 100-200 steps instead of 50.
+Layer selection: Experiment with different layers (e.g., 6-12) for both vision and text.
+Adjust loss weights: Increase vsd_loss_weight (e.g., 2.0-3.0) and decrease focal_loss_weight (e.g., 1.0-2.0).
+Lower the temperature: Try 0.05 or even 0.03.
+Threshold adjustment: Modify the percentile in text_heatmap_iba (e.g., 30-40 instead of 45).
+"""
 
 import numpy as np
 import torch
@@ -152,13 +160,13 @@ class IBAInterpreter:
         self.cross_attention = CrossAttentionLayer(dim_model)
 
         # Additional components for the loss function
-        self.focal = FocalLoss(class_num=2, alpha=1, gamma=5.5, size_average=True)
+        self.focal = FocalLoss(class_num=2, alpha=0.5, gamma=2.5, size_average=True)
         self.focal = self.focal.to(self.device)
         self.softmax = nn.Softmax(dim=1)
         # Add these parameters with default values
         self.temperature = 0.07
-        self.vsd_loss_weight = 1.5 #0.08
-        self.focal_loss_weight = 2.9 #1.9
+        self.vsd_loss_weight = 2.9
+        self.focal_loss_weight = 3.2
         
         # Additional components for the loss function
         """self.focal = FocalLoss(class_num=2, alpha=0.5, gamma=2.0, size_average=True)
