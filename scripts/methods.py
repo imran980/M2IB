@@ -37,25 +37,21 @@ def get_compression_estimator(var, layer, features):
     return estimator
 
 def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=50, progbar=True):
+
     features = extract_feature_map(model.text_model, layer_idx, text_t)
     layer = extract_bert_layer(model.text_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
     reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
-    heatmap = reader.text_heatmap(text_t, image_t)
-    
-    # Apply thresholding to the heatmap
-    threshold = np.percentile(heatmap, 45)
-    heatmap[heatmap < threshold] = 0  # or use a small value like 1e-6 instead of 0
-    
-    # Renormalize the heatmap
-    if heatmap.max() > 0:
-        heatmap = heatmap / heatmap.max()
-    
-    return heatmap
+    heatmap, grad_eclip_saliency = reader.text_heatmap(text_t, image_t)
+    #heatmap = reader.text_heatmap(text_t, image_t)
+  
+    return heatmap * grad_eclip_saliency  # Combine IBA and Grad-ECLIP results
 
 def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=50, progbar=True):
+
     features = extract_feature_map(model.vision_model, layer_idx, image_t)
     layer = extract_bert_layer(model.vision_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
     reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
-    return reader.vision_heatmap(text_t, image_t)
+    heatmap, grad_eclip_saliency = reader.vision_heatmap(text_t, image_t)
+    return heatmap * grad_eclip_saliency
