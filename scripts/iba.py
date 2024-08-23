@@ -195,7 +195,7 @@ class IBAInterpreter:
         saliency = F.interpolate(saliency, size=224, mode='bilinear')
         saliency = saliency.squeeze().cpu().detach().numpy()
         grad_eclip_saliency = grad_eclip_saliency.cpu().detach().numpy()
-        return normalize(saliency) * grad_eclip_saliency
+        return normalize(saliency), grad_eclip_saliency 
 
     def _run_text_training(self, text_t, image_t):
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
