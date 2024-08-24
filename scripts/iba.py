@@ -6,6 +6,81 @@ from scripts.utils import replace_layer, normalize, mySequential
 from scripts.cross_attention import CrossAttentionLayer
 from scripts.loss_focal import FocalLoss
 
+class Estimator:
+    """
+    Useful to calculate the empirical mean and variance of intermediate feature maps.
+    """
+    def __init__(self, layer):
+        self.layer = layer
+        self.M = None  # running mean for each entry
+        self.S = None  # running std for each entry
+        self.N = None  # running num_seen for each entry
+        self.num_seen = 0  # total samples seen
+        self.eps = 1e-5
+
+    def feed(self, z: np.ndarray):
+
+        # Initialize if this is the first datapoint
+        if self.N is None:
+            self.M = np.zeros_like(z, dtype=float)
+            self.S = np.zeros_like(z, dtype=float)
+            self.N = np.zeros_like(z, dtype=float)
+
+        self.num_seen += 1
+
+        diff = (z - self.M)
+        self.N += 1
+        self.M += diff / self.num_seen
+        self.S += diff * (z - self.M)
+
+    def feed_batch(self, batch: np.ndarray):
+        for point in batch:
+            self.feed(point)
+
+    def shape(self):
+        return self.M.shape
+
+    def is_complete(self):
+        return self.num_seen > 0
+
+    def get_layer(self):
+        return self.layer
+
+    def mean(self):
+        return self.M.squeeze()
+
+    def p_zero(self):
+        return 1 - self.N / (self.num_seen + 1)  # Adding 1 for stablility, so that p_zero > 0 everywhere
+
+    def std(self, stabilize=True):
+        if stabilize:
+            # Add small numbers, so that dead neurons are not a problem
+            return np.sqrt(np.maximum(self.S, self.eps) / np.maximum(self.N, 1.0))
+
+        else:
+            return np.sqrt(self.S / self.N)
+
+    def estimate_density(self, z):
+        z_norm = (z - self.mean()) / self.std()
+        p = z_norm.pdf(z_norm, 0, 1)
+        return p
+
+    def normalize(self, z):
+        return (z - self.mean()) / self.std()
+
+    def load(self, what):
+        state = what if not isinstance(what, str) else torch.load(what)
+        # Check if estimator classes match
+        if self.__class__.__name__ != state["class"]:
+            raise RuntimeError("This Estimator is {}, cannot load {}".format(self.__class__.__name__, state["class"]))
+        # Check if layer classes match
+        if self.layer.__class__.__name__ != state["layer_class"]:
+            raise RuntimeError("This Layer is {}, cannot load {}".format(self.layer.__class__.__name__, state["layer_class"]))
+        self.N = state["N"]
+        self.S = state["S"]
+        self.M = state["M"]
+        self.num_seen = state["num_seen"]
+
 class GradientEnhancedIBAInterpreter(nn.Module):
     def __init__(self, model, estim, beta, steps=10, lr=1, batch_size=10, progbar=False, dim_model=512):
         super().__init__()
