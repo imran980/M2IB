@@ -112,7 +112,9 @@ class GradientEnhancedIBAInterpreter(nn.Module):
         saliency, loss_c, loss_f, loss_t, grad_saliency = self._run_text_training(text_t, image_t)
         saliency = torch.nansum(saliency, -1).cpu().detach().numpy()
         saliency = normalize(saliency)
+        print("saliency shape============:", saliency.shape)
         grad_saliency = grad_saliency.cpu().detach().numpy()
+        print("grad_saliency shape============:", grad_saliency.shape)
         return saliency * grad_saliency
 
     def vision_heatmap(self, text_t, image_t):
