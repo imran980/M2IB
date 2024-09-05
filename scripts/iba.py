@@ -1,12 +1,29 @@
+"""
+Based on code of https://github.com/bazingagin/IBA, https://github.com/BioroboticsLab/IBA
+"""
+"""
+Adjust beta values: Try lower values (e.g., 0.01-0.05) for both vbeta and tbeta.
+Increase training steps: Try 100-200 steps instead of 50.
+Layer selection: Experiment with different layers (e.g., 6-12) for both vision and text.
+Adjust loss weights: Increase vsd_loss_weight (e.g., 2.0-3.0) and decrease focal_loss_weight (e.g., 1.0-2.0).
+Lower the temperature: Try 0.05 or even 0.03.
+Threshold adjustment: Modify the percentile in text_heatmap_iba (e.g., 30-40 instead of 45).
+"""
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
-import numpy as np
 from scripts.utils import replace_layer, normalize, mySequential
 from scripts.cross_attention import CrossAttentionLayer
+
 from scripts.loss_focal import FocalLoss
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+# np.random.seed(42)
 class Estimator:
     """
     Useful to calculate the empirical mean and variance of intermediate feature maps.
@@ -20,7 +37,6 @@ class Estimator:
         self.eps = 1e-5
 
     def feed(self, z: np.ndarray):
-
         # Initialize if this is the first datapoint
         if self.N is None:
             self.M = np.zeros_like(z, dtype=float)
@@ -51,13 +67,12 @@ class Estimator:
         return self.M.squeeze()
 
     def p_zero(self):
-        return 1 - self.N / (self.num_seen + 1)  # Adding 1 for stablility, so that p_zero > 0 everywhere
+        return 1 - self.N / (self.num_seen + 1)  # Adding 1 for stability, so that p_zero > 0 everywhere
 
     def std(self, stabilize=True):
         if stabilize:
             # Add small numbers, so that dead neurons are not a problem
             return np.sqrt(np.maximum(self.S, self.eps) / np.maximum(self.N, 1.0))
-
         else:
             return np.sqrt(self.S / self.N)
 
@@ -82,9 +97,54 @@ class Estimator:
         self.M = state["M"]
         self.num_seen = state["num_seen"]
 
-class GradientEnhancedIBAInterpreter(nn.Module):
-    def __init__(self, model, estim, beta, steps=10, lr=1, batch_size=10, progbar=False, dim_model=512):
+
+class InformationBottleneck(nn.Module):
+    def __init__(self, mean: np.ndarray, std: np.ndarray, device=None):
         super().__init__()
+        self.device = device
+        self.initial_value = 5.0
+        self.std = torch.tensor(std, dtype=torch.float, device=self.device, requires_grad=False)
+        self.mean = torch.tensor(mean, dtype=torch.float, device=self.device, requires_grad=False)
+        self.alpha = nn.Parameter(torch.full((1, *self.mean.shape), fill_value=self.initial_value, device=self.device))
+        self.sigmoid = nn.Sigmoid()
+        self.buffer_capacity = None
+
+        self.reset_alpha()
+
+    @staticmethod
+    def _sample_t(mu, noise_var):
+        #log_noise_var = torch.clamp(log_noise_var, -10, 10)
+        noise_std = noise_var.sqrt()
+        eps = mu.data.new(mu.size()).normal_()
+        return mu + noise_std * eps
+
+    @staticmethod
+    def _calc_capacity(mu, var):
+        # KL[P(t|x)||Q(t)] where Q(t) is N(0,1)
+        kl =  -0.5 * (1 + torch.log(var) - mu**2 - var)
+        return kl
+
+    def reset_alpha(self):
+        with torch.no_grad():
+            self.alpha.fill_(self.initial_value)
+        return self.alpha
+
+    def forward(self, x, **kwargs):
+        print("x shape------------------:", x.shape)
+        
+        lamb = self.sigmoid(self.alpha)
+        lamb = lamb.expand(x.shape[0], x.shape[1], -1)
+        print("lamb shape---------------------:", lamb.shape)
+        
+        masked_mu = x * lamb
+        masked_var = (1-lamb)**2
+        self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
+        t = self._sample_t(masked_mu, masked_var)
+        return (t,)
+
+
+class IBAInterpreter:
+    def __init__(self, model, estim: Estimator, beta, steps=10, lr=1, batch_size=10, progbar=False, dim_model=512):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
         self.original_layer = estim.get_layer()
@@ -95,137 +155,140 @@ class GradientEnhancedIBAInterpreter(nn.Module):
         self.progbar = progbar
         self.lr = lr
         self.train_steps = steps
-        self.bottleneck = GradientGuidedInformationBottleneck(estim.mean(), estim.std(), device=self.device)
+        self.bottleneck = InformationBottleneck(estim.mean(), estim.std(), device=self.device)
         self.sequential = mySequential(self.original_layer, self.bottleneck)
         self.cross_attention = CrossAttentionLayer(dim_model)
-        
+
+        # Additional components for the loss function
         self.focal = FocalLoss(class_num=2, alpha=0.5, gamma=2.5, size_average=True)
         self.focal = self.focal.to(self.device)
         self.softmax = nn.Softmax(dim=1)
-        
+        # Add these parameters with default values
         self.temperature = 0.07
         self.vsd_loss_weight = 2.9
         self.focal_loss_weight = 3.2
-        self.grad_weight = 1.0
         
+        # Additional components for the loss function
+        """self.focal = FocalLoss(class_num=2, alpha=0.5, gamma=2.0, size_average=True)
+        self.focal = self.focal.to(self.device)
+        self.softmax = nn.Softmax(dim=1)
+        
+        # Add these parameters with default values
+        self.temperature = 0.03
+        self.vsd_loss_weight = 0.1
+        self.focal_loss_weight = 1.5"""
+
     def text_heatmap(self, text_t, image_t):
-        saliency, loss_c, loss_f, loss_t, grad_saliency = self._run_text_training(text_t, image_t)
+        saliency, loss_c, loss_f, loss_t = self._run_text_training(text_t, image_t)
         saliency = torch.nansum(saliency, -1).cpu().detach().numpy()
         saliency = normalize(saliency)
-        print("saliency shape============:", saliency.shape)
-        grad_saliency = grad_saliency.cpu().detach().numpy()
-        print("grad_saliency shape============:", grad_saliency.shape)
-        return saliency * grad_saliency
-
+        return normalize(saliency)
+    
     def vision_heatmap(self, text_t, image_t):
-        saliency, loss_c, loss_f, loss_t, grad_saliency = self._run_vision_training(text_t, image_t)
+        saliency, loss_c, loss_f, loss_t = self._run_vision_training(text_t, image_t)
         saliency = torch.nansum(saliency, -1)[1:]  # Discard the first because it's the CLS token
         dim = int(saliency.numel() ** 0.5)
         saliency = saliency.reshape(1, 1, dim, dim)
-        saliency = F.interpolate(saliency, size=224, mode='bilinear')
+        saliency = torch.nn.functional.interpolate(saliency, size=224, mode='bilinear')
         saliency = saliency.squeeze().cpu().detach().numpy()
-        grad_saliency = grad_saliency.cpu().detach().numpy()
-        return normalize(saliency), grad_saliency 
+        return normalize(saliency)
 
     def _run_text_training(self, text_t, image_t):
         replace_layer(self.model.text_model, self.original_layer, self.sequential)
-        loss_c, loss_f, loss_t, grad_saliency = self._train_bottleneck(text_t, image_t)
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
         replace_layer(self.model.text_model, self.sequential, self.original_layer)
-        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t, grad_saliency
-
+        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
+    
     def _run_vision_training(self, text_t, image_t):
         replace_layer(self.model.vision_model, self.original_layer, self.sequential)
-        loss_c, loss_f, loss_t, grad_saliency = self._train_bottleneck(text_t, image_t)
+        loss_c, loss_f, loss_t = self._train_bottleneck(text_t, image_t)
         replace_layer(self.model.vision_model, self.sequential, self.original_layer)
-        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t, grad_saliency
+        return self.bottleneck.buffer_capacity.mean(axis=0), loss_c, loss_f, loss_t
 
     def _train_bottleneck(self, text_t: torch.Tensor, image_t: torch.Tensor):
+        print("train bottleneck Dimensions of text_t------:",  text_t.shape)
+        print("train bottleneck Dimensions of image_t------:",  image_t.shape)
         batch = text_t.expand(self.batch_size, -1), image_t.expand(self.batch_size, -1, -1, -1)
+        print("train bottleneck Dimensions of batch[0]------:",  batch[0].shape)
+        print("train bottleneck Dimensions of batch[1]------:",  batch[1].shape)
         optimizer = torch.optim.Adam(lr=self.lr, params=self.bottleneck.parameters())
-        self.bottleneck.alpha.data.fill_(self.bottleneck.initial_value)
-        
+        # Reset from previous run or modifications
+        self.bottleneck.reset_alpha()
+        # Train
         self.model.eval()
-        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck", disable=not self.progbar):
+        for _ in tqdm(range(self.train_steps), desc="Training Bottleneck",
+                      disable=not self.progbar):
             optimizer.zero_grad()
             out = self.model.get_text_features(batch[0]), self.model.get_image_features(batch[1])
+            print("train bottleneck Dimensions of out[0]------:",  out[0].shape)
+            print("train bottleneck Dimensions of out[1]------:",  out[1].shape)
             attended_image, attended_text = self.cross_attention(out[1], out[0])
-            loss_c, loss_f, loss_t, grad_saliency = self.calc_loss(outputs=attended_text, labels=attended_image)
+            loss_c, loss_f, loss_t = self.calc_loss3(outputs=attended_text, labels=attended_image)
             loss_t.backward()
-            optimizer.step()
-        return loss_c, loss_f, loss_t, grad_saliency
+            optimizer.step(closure=None)
+        return loss_c, loss_f, loss_t 
 
-    def calc_loss(self, outputs, labels):
-        loss_c = self.bottleneck.buffer_capacity.mean()
-        
+    def calc_loss1(self, outputs, labels):
+        """ Calculate the combined loss expression for optimization of lambda """
+        compression_term = self.bottleneck.buffer_capacity.mean()
+        fitting_term = self.fitting_estimator(outputs, labels).mean()
+        total = self.beta * compression_term - fitting_term
+        return compression_term, fitting_term, total 
+
+    def calc_loss2(self, outputs, labels, temperature=0.07):
+        compression_term = self.bottleneck.buffer_capacity.mean()
+
+        # Improved InfoNCE loss
         outputs = F.normalize(outputs, dim=-1)
         labels = F.normalize(labels, dim=-1)
-        
+        logits = (outputs @ labels.T) / temperature
+    
+        batch_size = outputs.shape[0]
+        labels = torch.arange(batch_size, device=logits.device)
+    
+        loss_i = F.cross_entropy(logits, labels)
+        loss_t = F.cross_entropy(logits.T, labels)
+        contrastive_loss = (loss_i + loss_t) / 2
+
+        total = self.beta * compression_term - contrastive_loss
+
+        return compression_term, contrastive_loss, total 
+
+    def calc_loss3(self, outputs, labels):
+        # Compression term (loss_c)
+        loss_c = self.bottleneck.buffer_capacity.mean()
+    
+        # Normalize outputs and labels
+        outputs = F.normalize(outputs, dim=-1)
+        labels = F.normalize(labels, dim=-1)
+    
+        # Fitting term (loss_f) - using cosine similarity
         loss_f = self.fitting_estimator(outputs, labels).mean()
-        
+    
+        # VSD loss calculation
         vsd_loss = F.kl_div(
             F.log_softmax(outputs / self.temperature, dim=-1),
             F.softmax(labels / self.temperature, dim=-1),
             reduction='batchmean'
         )
-        
+    
+        # Prepare inputs for FocalLoss
         batch_size = outputs.shape[0]
         binary_labels = torch.zeros(batch_size, dtype=torch.long, device=self.device)
         binary_labels[:] = 1  # Assuming positive class
-        
-        focal_inputs = outputs.mean(dim=-1)
-        focal_inputs = torch.stack((1 - focal_inputs, focal_inputs), dim=-1)
-        
+    
+        # Adjust outputs for FocalLoss input
+        focal_inputs = outputs.mean(dim=-1)  # Average across the feature dimension
+        focal_inputs = torch.stack((1 - focal_inputs, focal_inputs), dim=-1)  # Create binary prediction
+    
         focal_loss = self.focal(focal_inputs, binary_labels)
-        
-        # Calculate gradient-based saliency
-        grad_saliency = self.calculate_gradient_saliency(outputs, labels)
-        
+    
+        # Combine all loss terms to get total loss (loss_t)
         loss_t = (
             self.beta * loss_c
             - loss_f
             + self.vsd_loss_weight * vsd_loss
             + self.focal_loss_weight * focal_loss
-            + self.grad_weight * grad_saliency.mean()
         )
-        
-        return loss_c, loss_f, loss_t, grad_saliency
-
-    def calculate_gradient_saliency(self, outputs, labels):
-        outputs.retain_grad()
-        similarity = F.cosine_similarity(outputs, labels)
-        similarity.backward(torch.ones_like(similarity), retain_graph=True)
-        grad_saliency = outputs.grad.abs().mean(dim=-1)
-        outputs.grad.zero_()
-        return grad_saliency
-
-class GradientGuidedInformationBottleneck(nn.Module):
-    def __init__(self, mean, std, device=None):
-        super().__init__()
-        self.device = device
-        self.initial_value = 5.0
-        self.std = torch.tensor(std, dtype=torch.float, device=self.device, requires_grad=False)
-        self.mean = torch.tensor(mean, dtype=torch.float, device=self.device, requires_grad=False)
-        self.alpha = nn.Parameter(torch.full((1, *self.mean.shape), fill_value=self.initial_value, device=self.device))
-        self.sigmoid = nn.Sigmoid()
-        self.buffer_capacity = None
-
-    def forward(self, x):
-        lamb = self.sigmoid(self.alpha)
-        lamb = lamb.expand(x.shape[0], x.shape[1], -1)
-        
-        masked_mu = x * lamb
-        masked_var = (1-lamb)**2
-        self.buffer_capacity = self._calc_capacity(masked_mu, masked_var)
-        t = self._sample_t(masked_mu, masked_var)
-        return t
-
-    @staticmethod
-    def _sample_t(mu, noise_var):
-        noise_std = noise_var.sqrt()
-        eps = mu.data.new(mu.size()).normal_()
-        return mu + noise_std * eps
-
-    @staticmethod
-    def _calc_capacity(mu, var):
-        kl = -0.5 * (1 + torch.log(var) - mu**2 - var)
-        return kl
+    
+        return loss_c, loss_f, loss_t
