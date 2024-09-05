@@ -2,14 +2,12 @@
 Based on code of https://github.com/bazingagin/IBA, https://github.com/BioroboticsLab/IBA
 """
 
-
+from scripts.iba import IBAInterpreter, Estimator
 import numpy as np
 import clip
 import copy
 import torch 
 from transformers import CLIPProcessor, CLIPModel, CLIPTokenizerFast
-from scripts.iba import GradientEnhancedIBAInterpreter, Estimator
-
 
 # Feature Map is the output of a certain layer given X
 def extract_feature_map(model, layer_idx, x):
@@ -39,17 +37,21 @@ def get_compression_estimator(var, layer, features):
     return estimator
 
 def text_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=50, progbar=True):
+
     features = extract_feature_map(model.text_model, layer_idx, text_t)
     layer = extract_bert_layer(model.text_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
-    reader = GradientEnhancedIBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
-    heatmap = reader.text_heatmap(text_t, image_t)
-    return heatmap
+    reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
+    heatmap, grad_eclip_saliency = reader.text_heatmap(text_t, image_t)
+    #heatmap = reader.text_heatmap(text_t, image_t)
+  
+    return heatmap * grad_eclip_saliency  # Combine IBA and Grad-ECLIP results
 
 def vision_heatmap_iba(text_t, image_t, model, layer_idx, beta, var, lr=1, train_steps=50, progbar=True):
+
     features = extract_feature_map(model.vision_model, layer_idx, image_t)
     layer = extract_bert_layer(model.vision_model, layer_idx)
     compression_estimator = get_compression_estimator(var, layer, features)
-    reader = GradientEnhancedIBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
-    heatmap = reader.vision_heatmap(text_t, image_t)
-    return heatmap
+    reader = IBAInterpreter(model, compression_estimator, beta=beta, lr=lr, steps=train_steps, progbar=progbar)
+    heatmap, grad_eclip_saliency = reader.vision_heatmap(text_t, image_t)
+    return heatmap * grad_eclip_saliency
