@@ -44,8 +44,10 @@ class image_encoder_wrapper(nn.Module):
             layer.forward = partial(permute_then_forward, layer)
 
     def forward(self, x, output_hidden_states=False, emb_input = False):
+        print("image_encoder_wrapper x",x.shape)
         if not emb_input:
             x = self.embeddings(x)
+        print("image_encoder_wrapper x",x.shape)
         x = self.ln_pre(x).to(self.dtype)
         #x = x.permute(1, 0, 2)  # NLD -> LND
         hidden_states = [x.clone().detach()]
